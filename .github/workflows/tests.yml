@@ -40,6 +40,7 @@ jobs:
         shell: bash
         run: |
           cleanup() {
+            sudo journalctl -u tunnelguard-server-server -u tunnelguard-client-shadowsocks -u tunnelguard-client-trojan -u tunnelguard-client-hysteria2 -u tunnelguard-client-guard --no-pager -n 80 || true
             sudo systemctl disable --now tunnelguard-server-server tunnelguard-client-shadowsocks tunnelguard-client-trojan tunnelguard-client-hysteria2 tunnelguard-client-guard || true
           }
           trap cleanup EXIT
