@@ -14,7 +14,7 @@ The namespace had no uplink, veth or default route. Endpoint/source addresses we
 127.0.0.1–127.0.0.4; no raw packet was sent to any external network.
 
 Validated: raw TCP upload / raw UDP download, TLS overlay config validation and handshake,
-264,000-byte payload equality through both the Spoof SOCKS endpoint and the guard,
+288,000-byte payload equality through both the Spoof SOCKS endpoint and the guard,
 automatic attachment to an existing three-route deployment, exact backup of the original
 configuration, and selection of the Emergency profile so normal routes could not mask a
 Spoof failure. The pairing file did not contain the server private key. Actual root carrier
