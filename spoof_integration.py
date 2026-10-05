@@ -18,6 +18,7 @@ from unittest.mock import patch
 import deploy
 import deploy_spoof as spoof
 import maintenance
+import diagnostics
 from test_spoof import settings
 
 NAMESPACE = "tg-spoof-ci"
@@ -72,6 +73,8 @@ def main():
             assert "PRIVATE KEY" not in (ss/"pairing.json").read_text()
             spoof.apply(ss, "server", s, archive, raw)
             spoof.apply(sc, "client", s, archive, raw)
+            days = diagnostics.certificate_days(json.loads((spoof.PREFIX/"server/overlay.json").read_text()))
+            assert days and all(d >= 360 for d in days), days
             assert (spoof.PREFIX/"client/guard-backup.json").read_bytes() == original
             merged = json.loads(spoof.EXISTING_GUARD.read_text())
             assert len(merged["routes"]) == 4 and merged["profiles"]["Emergency"] == ["Spoof"]
@@ -126,6 +129,7 @@ def main():
                 "--concurrency", "4", "--max-mib", "10240", "--output", "/tmp/tg-soak.json")
             result = json.loads(Path("/tmp/tg-soak.json").read_text())
             assert all(r["success_pct"] >= 95 for r in result["routes"]), result
+            print("SOAK_REPORT", json.dumps(result))
             print("PASS: upgrade, rollback, base/Spoof rotation, detach/restore and sustained probes", result["elapsed_s"])
             # Synthetic loss/delay affects only the namespace loopback, never the host.
             run("ip", "netns", "exec", NAMESPACE, "tc", "qdisc", "add", "dev", "lo", "root", "netem", "delay", "10ms", "3ms", "loss", "0.5%")
@@ -135,6 +139,7 @@ def main():
                     "--concurrency", "4", "--max-mib", "1024", "--output", "/tmp/tg-loss.json")
                 loss = json.loads(Path("/tmp/tg-loss.json").read_text())
                 assert all(r["success_pct"] >= 80 for r in loss["routes"]), loss
+                print("LOSS_REPORT", json.dumps(loss))
                 print("PASS: isolated 10ms jittered delay / 0.5% synthetic packet loss")
             finally:
                 run("ip", "netns", "exec", NAMESPACE, "tc", "qdisc", "del", "dev", "lo", "root")
