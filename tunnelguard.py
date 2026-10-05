@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 ROOT = Path(__file__).resolve().parent
 LANG = "fa"
 

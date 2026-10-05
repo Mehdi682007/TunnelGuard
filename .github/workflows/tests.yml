@@ -2,21 +2,39 @@ name: Tests
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      soak_seconds:
+        description: 'Isolated soak duration (60..7200 seconds)'
+        default: '300'
+        required: true
 permissions:
   contents: read
 jobs:
   spoof:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Download pinned integration assets
         shell: bash
         run: |
-          curl --fail --location --output "$RUNNER_TEMP/sing-box.tar.gz" https://github.com/SagerNet/sing-box/releases/download/v1.14.2/sing-box-1.14.2-linux-amd64.tar.gz
-          curl --fail --location --output "$RUNNER_TEMP/spoof" https://github.com/ParsaKSH/spoof-tunnel/releases/download/v3.1.0-beta.0/spoof-linux-amd64
+          curl --fail --location --output "$RUNNER_TEMP/sing-box.tar.gz" https://github.com/SagerNet/sing-box/releases/download/v1.14.2/sing-box-1.14.2-linux-${{ matrix.arch }}.tar.gz
+          curl --fail --location --output "$RUNNER_TEMP/spoof" https://github.com/ParsaKSH/spoof-tunnel/releases/download/v3.1.0-beta.0/spoof-linux-${{ matrix.arch }}
       - name: Isolated raw transport and paired service integration
-        timeout-minutes: 8
-        run: sudo env GITHUB_ACTIONS=true /usr/bin/python3 spoof_integration.py "$RUNNER_TEMP/sing-box.tar.gz" "$RUNNER_TEMP/spoof"
+        timeout-minutes: 140
+        env:
+          SOAK_INPUT: ${{ inputs.soak_seconds || '60' }}
+        run: |
+          python3 -c 'import os; n=int(os.environ["SOAK_INPUT"]); assert 60 <= n <= 7200'
+          sudo env GITHUB_ACTIONS=true TG_SOAK_SECONDS="$SOAK_INPUT" /usr/bin/python3 spoof_integration.py "$RUNNER_TEMP/sing-box.tar.gz" "$RUNNER_TEMP/spoof"
   test:
     strategy:
       fail-fast: false
