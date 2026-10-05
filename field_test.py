@@ -28,19 +28,21 @@ def main():
     config = "/opt/tunnelguard-node/client/config.json" if a.family == "base" else "/opt/tunnelguard-spoof/client/config.json"
     report = {"kind": "field", "status": "starting", "family": a.family}
     destination = "/var/lib/tunnelguard-maintenance/field-"+uuid.uuid4().hex+".json"
-    def call(args, timeout):
+    def call(args, timeout, check=True):
         return subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=10", a.client,
-                               shlex.join(["sudo", "-n", *args])], capture_output=True, timeout=timeout, check=True)
+                               shlex.join(["sudo", "-n", *args])], capture_output=True, timeout=timeout, check=check)
     try:
         report["server_certificate"] = remote(a.server, a.checkout, ["certificate-status", "--target", "server" if a.family == "base" else "spoof-server"])
         save(a.output, report)
         result = call(["python3", a.checkout.rstrip("/")+"/diagnostics.py", "soak", "--config", config,
-                       "--seconds", str(a.seconds), "--max-mib", str(a.max_mib), "--output", destination], a.seconds+600)
+                       "--seconds", str(a.seconds), "--max-mib", str(a.max_mib), "--output", destination], a.seconds+600, check=False)
+        if result.returncode not in (0, 1):
+            raise RuntimeError("Remote test was interrupted")
         report["measurements"] = json.loads(call(["cat", destination], 30).stdout)
         report["status"] = "complete"
         save(a.output, report)
         print("گزارش آزمایش میدانی / Field report:", a.output)
-        return 0
+        return 0 if result.returncode == 0 else 1
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError):
         report["status"] = "incomplete"
         report["remote_report"] = destination

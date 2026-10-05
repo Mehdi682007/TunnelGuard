@@ -111,7 +111,8 @@ Omit `--apply` to generate private configuration files only, without downloading
 or changing services. Use a **new output directory** for every invocation. A new
 server generation creates new credentials; pair clients with the bundle belonging
 to the actually installed server. Existing output directories and installations
-are never overwritten. There is no automatic credential rotation or in-place upgrade.
+are never overwritten by the initial installer. Use the [operations toolkit](OPERATIONS.md)
+for in-place upgrades, rollback, uninstall and coordinated credential/certificate rotation.
 
 Services use systemd DynamicUser and private LoadCredential configuration. Server
 TLS keys never leave the server; client verification remains enabled using the

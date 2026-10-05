@@ -1,5 +1,8 @@
 # Automatic Spoof deployment (experimental)
 
+Version 2.3 adds [automatic renewal, upgrade, rollback and removal](OPERATIONS.md).
+The commands on this page perform initial installation.
+
 [فارسی](SPOOF.fa.md) · [Base deployment](DEPLOY.md)
 
 TunnelGuard 2.2 installs **Parsa spoof-tunnel v3.1.0-beta.0** and **sing-box 1.14.2**,
