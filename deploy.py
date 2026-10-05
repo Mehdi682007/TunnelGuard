@@ -273,6 +273,9 @@ def apply(folder, role, offline=None):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("spoof-server", "spoof-client"):
+        from deploy_spoof import main as spoof_main
+        return spoof_main()
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("role", choices=["server", "client"])
     p.add_argument("--output", type=Path, required=True, help="New private directory; never overwritten")

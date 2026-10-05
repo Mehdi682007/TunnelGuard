@@ -11,7 +11,7 @@ Other Linux distributions have not been qualified. `--apply` requires root and s
 The server is the exit node, usually outside Iran. The client node, usually in Iran,
 connects outward to it. All three protocols on one exit IP provide transport
 diversity, **not protection against loss/blocking of that IP**. This is not a reverse
-tunnel. Spoof, Backhaul and other adapters still require their own deployment.
+tunnel. [Spoof now has its own automatic paired installer](SPOOF.md); Backhaul and other adapters still require their own deployment.
 
 ## 1. Prepare both servers
 

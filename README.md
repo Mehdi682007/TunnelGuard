@@ -4,6 +4,8 @@
 
 Local tunnel monitoring, route selection and TCP failover, with a Persian/English dashboard.
 
+**New in 2.2: [automatic Spoof installation](SPOOF.md)** — pinned Parsa carrier + verified TLS overlay, paired server/client setup and automatic attachment to the existing gateway. Experimental upstream beta; explicit source IPs and a compatible provider network are required.
+
 TunnelGuard measures existing HTTP CONNECT or SOCKS5 routes, exposes a stable local SOCKS5 gateway, and selects a healthy route for **new TCP connections**. It includes manual controls, network profiles, quality-based selection, bounded download benchmarks and optional supervision of separately installed tunnel cores.
 
 **New in 2.1: [automatic two-node deployment](DEPLOY.md)** for Shadowsocks 2022, Trojan/TLS and Hysteria2/QUIC, including verified core downloads, paired configurations and systemd services. [راهنمای نصب دو سمت](DEPLOY.fa.md)

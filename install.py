@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent
 FILES = ["tunnelguard.py", "engines.py", "dashboard.html", "config.example.json",
          "config.multilayer.example.json", "config.managed.example.json",
          "README.md", "README.fa.md", "MULTILAYER.md", "MULTILAYER.fa.md",
-         "deploy.py", "DEPLOY.md", "DEPLOY.fa.md"]
+         "deploy.py", "deploy_spoof.py", "DEPLOY.md", "DEPLOY.fa.md", "SPOOF.md", "SPOOF.fa.md"]
 
 
 def atomic_copy(source, target):
