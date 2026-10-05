@@ -127,6 +127,17 @@ def main():
             result = json.loads(Path("/tmp/tg-soak.json").read_text())
             assert all(r["success_pct"] >= 95 for r in result["routes"]), result
             print("PASS: upgrade, rollback, base/Spoof rotation, detach/restore and sustained probes", result["elapsed_s"])
+            # Synthetic loss/delay affects only the namespace loopback, never the host.
+            run("ip", "netns", "exec", NAMESPACE, "tc", "qdisc", "add", "dev", "lo", "root", "netem", "delay", "10ms", "3ms", "loss", "0.5%")
+            try:
+                run("ip", "netns", "exec", NAMESPACE, "/usr/bin/python3", str(deploy.ROOT/"diagnostics.py"), "soak",
+                    "--config", "/opt/tunnelguard-node/client/config.json", "--seconds", "30", "--interval", "0.25",
+                    "--concurrency", "4", "--max-mib", "1024", "--output", "/tmp/tg-loss.json")
+                loss = json.loads(Path("/tmp/tg-loss.json").read_text())
+                assert all(r["success_pct"] >= 80 for r in loss["routes"]), loss
+                print("PASS: isolated 10ms jittered delay / 0.5% synthetic packet loss")
+            finally:
+                run("ip", "netns", "exec", NAMESPACE, "tc", "qdisc", "del", "dev", "lo", "root")
     finally:
         subprocess.run(["journalctl", *[x for unit in UNITS for x in ("-u", unit)], "--no-pager", "-n", "100"])
         subprocess.run(["systemctl", "disable", "--now", *UNITS], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

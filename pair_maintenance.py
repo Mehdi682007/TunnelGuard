@@ -15,6 +15,8 @@ from diagnostics import save
 def install_timer(a):
     if sys.platform != "linux" or os.geteuid() != 0:
         raise ValueError("Linux root required")
+    if a.server == a.client:
+        raise ValueError("Use two distinct SSH aliases")
     for host in (a.server, a.client):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", host):
             raise ValueError("Invalid SSH alias")
