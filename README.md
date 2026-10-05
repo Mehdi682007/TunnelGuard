@@ -6,7 +6,9 @@ Local tunnel monitoring, route selection and TCP failover, with a Persian/Englis
 
 TunnelGuard measures existing HTTP CONNECT or SOCKS5 routes, exposes a stable local SOCKS5 gateway, and selects a healthy route for **new TCP connections**. It includes manual controls, network profiles, quality-based selection, bounded download benchmarks and optional supervision of separately installed tunnel cores.
 
-**It does not install remote VPN servers, implement a new spoofing protocol, or guarantee connectivity on any ISP.** External cores and both ends of each tunnel must already be configured. Existing sessions are not migrated, and application UDP / SOCKS UDP ASSOCIATE is not supported.
+**New in 2.1: [automatic two-node deployment](DEPLOY.md)** for Shadowsocks 2022, Trojan/TLS and Hysteria2/QUIC, including verified core downloads, paired configurations and systemd services. [راهنمای نصب دو سمت](DEPLOY.fa.md)
+
+Other adapters require separately configured cores. TunnelGuard does not implement a new spoofing protocol or guarantee connectivity on any ISP. Existing sessions are not migrated, and application UDP / SOCKS UDP ASSOCIATE is not supported.
 
 ## Requirements
 

@@ -21,6 +21,11 @@ jobs:
         run: python -m unittest discover -v
       - name: Validate example configuration
         run: python tunnelguard.py check --lang en --config config.multilayer.example.json
+      - name: Real core transport and fallback integration (Linux)
+        if: runner.os == 'Linux'
+        env:
+          TG_CORE_TEST: '1'
+        run: python -m unittest test_deploy.RealCoreTests -v
       - name: Installer smoke test (Linux)
         if: runner.os == 'Linux'
         shell: bash

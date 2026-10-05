@@ -12,3 +12,6 @@ reports/
 .env
 .tg-*
 .tunnelguard-*
+deployment*/
+pairing.json
+server.json
