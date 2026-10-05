@@ -2,7 +2,13 @@
 
 Environment: Windows, Python 3.12.10, curl 8.9.1. Date: 2026-10-05.
 
-`python -m unittest -v`: **28 unique tests passed**, final full run 8.496 seconds.
+`python -m unittest discover -v`: **28 unique tests passed**, local publication run 9.245 seconds.
+
+GitHub Actions [publication validation](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37305166870)
+passed all four jobs: Ubuntu 24.04 and Windows, each with Python 3.11 and 3.12.
+Each job ran all 28 tests and validated the multi-layer example configuration.
+Both Linux jobs also installed into paths containing spaces, executed the installed launcher,
+and confirmed that reinstalling preserves an existing config.json.
 
 Validated with local fixtures:
 - Actual curl traffic through HTTP CONNECT and SOCKS5, credential handling and half-close.
@@ -31,6 +37,6 @@ External cores were NOT downloaded or executed. Launch lifecycle is verified wit
 fixture, not production sing-box/Xray/Spoof binaries. Protocol-specific config templates contain
 placeholders and require validation with the installed core after completion.
 
-Not validated: Linux/systemd deployment, raw-packet spoofing, actual Iranian ISP paths, third-party
+Not validated: production VPS/systemd deployment, raw-packet spoofing, actual Iranian ISP paths, third-party
 core interoperability, sustained production load, UDP applications or migration of existing sessions.
 The saved six-route report contains synthetic demo data only.
