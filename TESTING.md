@@ -1,5 +1,34 @@
 # TunnelGuard validation record
 
+## 2.3 operations and native ARM64 validation
+
+[Final functional run](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37340018201)
+passed all six jobs: Windows/Ubuntu with Python 3.11/3.12 and native Ubuntu amd64/ARM64
+deployment jobs. The default suite discovered 47 tests, passed 46 and skipped the opt-in
+real-core test; Linux jobs ran that test separately.
+
+Both native architectures completed real service upgrade/rollback, certificate and password
+rotation on the normal and Spoof pairs, Spoof detach/uninstall/restore, expiry extraction
+from the real certificate, and syntax verification of generated renewal timer/service units.
+The timer was not activated against fake SSH hosts. The coordinator's failed-client recovery
+and secret-free reporting are unit-tested; no real two-host SSH renewal has been run yet.
+
+Each native job then probed all four routes concurrently for 60 seconds, followed by
+30 seconds with isolated loopback netem delay 10ms ±3ms and 0.5% synthetic packet loss.
+All requests succeeded in these recorded runs: 224+61 requests per route on amd64 and
+225+60 on ARM64. This is request success, not absence of dropped/retransmitted packets.
+Reports with latency percentiles are printed in the CI logs.
+
+A separate [600-second run](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37339101697)
+also passed on both native architectures (600.01s amd64, 600.00s ARM64). That run preceded
+the final recovery-journal refinements and synthetic loss step; it validates the same
+transport stack for ten minutes, not multi-day stability.
+
+No user Iran/outside servers were supplied. Actual ISP field measurements, independent SSH
+coordination and multi-day production/load validation remain pending until those servers
+are available. The field/soak commands are implemented and documented. Do not infer a
+connectivity or throughput guarantee from the isolated loopback tests.
+
 ## 2.2 automatic Spoof deployment
 
 [GitHub Actions validation](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37329940744)
