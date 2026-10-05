@@ -1,5 +1,35 @@
 # TunnelGuard validation record
 
+## 2.2 automatic Spoof deployment
+
+[GitHub Actions validation](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37329940744)
+passed all five jobs: four OS/Python combinations plus a dedicated Ubuntu amd64 Spoof job.
+The default suite passed 39 tests with the separate real-core test skipped; Linux jobs
+also ran that real-core test explicitly. Local Windows run: 40 discovered, 39 passed,
+one opt-in skip, 9.146 seconds.
+
+The Spoof job verified pinned downloads, then deployed the real Parsa v3.1.0-beta.0
+and sing-box 1.14.2 binaries as systemd services inside a loopback-only network namespace.
+The namespace had no uplink, veth or default route. Endpoint/source addresses were
+127.0.0.1–127.0.0.4; no raw packet was sent to any external network.
+
+Validated: raw TCP upload / raw UDP download, TLS overlay config validation and handshake,
+264,000-byte payload equality through both the Spoof SOCKS endpoint and the guard,
+automatic attachment to an existing three-route deployment, exact backup of the original
+configuration, and selection of the Emergency profile so normal routes could not mask a
+Spoof failure. The pairing file did not contain the server private key. Actual root carrier
+services ran with a CAP_NET_RAW-only capability bounding set; TLS/guard used DynamicUser.
+
+Unit tests additionally cover direction/peer source matching, malformed network settings,
+duplicate ports, refused unsupported carriers, corrupted offline binary hashes, route/profile
+preservation and duplicate route rejection.
+
+Not tested: alternative TCP/UDP direction combinations, ARM64 execution, multiple independent
+client nodes, NAT/provider filtering, Iranian ISP paths, censorship resistance, packet loss/load
+soak tests or long-term upstream beta stability. The installation and the isolated tested path
+work; this is not evidence that a particular provider allows source spoofing. ICMP/ICMPv6/XDP
+deployment is not exposed. Certificate rotation remains manual.
+
 ## 2.1 automatic deployment
 
 [GitHub Actions validation](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37307542088)

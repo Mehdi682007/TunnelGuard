@@ -1,5 +1,8 @@
 # Multi-layer integration
 
+New in 2.2: [automatic paired Spoof installation with a TLS overlay](SPOOF.md).
+The adapter instructions below also apply to externally installed cores.
+
 [فارسی](MULTILAYER.fa.md) · [Main README](README.md)
 
 TunnelGuard manages **independent ready-made paths**. A route's proxy endpoint is the common interface used for measurements and SOCKS gateway traffic. The `layer` field is a user-supplied label, not protocol detection. A profile restricts selection to explicitly named routes; it does not change their transports.
