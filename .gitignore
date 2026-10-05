@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+config.json
+*.local.json
+control-state.json
+events*.jsonl
+reports/
+*.log
+*.key
+*.pem
+.env
+.tg-*
+.tunnelguard-*

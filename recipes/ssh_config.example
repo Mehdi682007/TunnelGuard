@@ -1,0 +1,11 @@
+# Replace host, user, identity path and known_hosts with your verified setup.
+Host tg-backup
+    HostName YOUR_SSH_SERVER
+    User YOUR_USER
+    Port 22
+    IdentityFile /etc/tunnelguard/keys/backup_ed25519
+    UserKnownHostsFile /etc/tunnelguard/keys/known_hosts
+    IdentitiesOnly yes
+    StrictHostKeyChecking yes
+    BatchMode yes
+    ConnectTimeout 10

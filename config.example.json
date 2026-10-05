@@ -1,0 +1,62 @@
+{
+  "listen_port": 1088,
+  "dashboard_port": 8787,
+  "interval": 5,
+  "timeout": 4,
+  "failures": 3,
+  "recovery": 2,
+  "cooldown": 20,
+  "failback": false,
+  "stale_after": 30,
+  "quorum": 1,
+  "max_connections": 256,
+  "history": 360,
+  "targets": [
+    {
+      "url": "https://www.gstatic.com/generate_204",
+      "status": [
+        204
+      ]
+    },
+    {
+      "url": "https://cp.cloudflare.com/generate_204",
+      "status": [
+        204
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "Route-A",
+      "proxy": "socks5h://127.0.0.1:1080",
+      "priority": 10,
+      "layer": "TCP-TLS"
+    },
+    {
+      "name": "Route-B",
+      "proxy": "http://127.0.0.1:2080",
+      "priority": 20,
+      "layer": "QUIC"
+    }
+  ],
+  "quarantine": 10,
+  "quarantine_max": 120,
+  "policy": "priority",
+  "switch_margin": 25,
+  "switch_rounds": 3,
+  "connect_attempts": 3,
+  "probe_concurrency": 8,
+  "profiles": {
+    "All": [
+      "Route-A",
+      "Route-B"
+    ],
+    "Primary": [
+      "Route-A"
+    ],
+    "Backup": [
+      "Route-B"
+    ]
+  },
+  "default_profile": "All"
+}

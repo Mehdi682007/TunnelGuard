@@ -1,0 +1,96 @@
+{
+  "listen_port": 1088,
+  "dashboard_port": 8787,
+  "interval": 5,
+  "timeout": 4,
+  "failures": 3,
+  "recovery": 2,
+  "cooldown": 20,
+  "failback": false,
+  "stale_after": 45,
+  "quorum": 1,
+  "max_connections": 256,
+  "history": 360,
+  "targets": [
+    {
+      "url": "https://www.gstatic.com/generate_204",
+      "status": [
+        204
+      ]
+    },
+    {
+      "url": "https://cp.cloudflare.com/generate_204",
+      "status": [
+        204
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "Reality",
+      "proxy": "socks5h://127.0.0.1:11001",
+      "priority": 10,
+      "layer": "TCP-TLS"
+    },
+    {
+      "name": "Hysteria",
+      "proxy": "socks5h://127.0.0.1:11002",
+      "priority": 20,
+      "layer": "QUIC"
+    },
+    {
+      "name": "Backhaul",
+      "proxy": "socks5h://127.0.0.1:11003",
+      "priority": 30,
+      "layer": "WSS"
+    },
+    {
+      "name": "Spoof",
+      "proxy": "socks5h://127.0.0.1:11004",
+      "priority": 40,
+      "layer": "RAW-OVERLAY"
+    },
+    {
+      "name": "SSH",
+      "proxy": "socks5h://127.0.0.1:11005",
+      "priority": 50,
+      "layer": "SSH-TCP"
+    },
+    {
+      "name": "DNS",
+      "proxy": "socks5h://127.0.0.1:11006",
+      "priority": 60,
+      "layer": "DNS-OVERLAY"
+    }
+  ],
+  "quarantine": 10,
+  "quarantine_max": 120,
+  "policy": "priority",
+  "switch_margin": 25,
+  "switch_rounds": 3,
+  "connect_attempts": 3,
+  "probe_concurrency": 8,
+  "profiles": {
+    "All": [
+      "Reality",
+      "Hysteria",
+      "Backhaul",
+      "Spoof",
+      "SSH",
+      "DNS"
+    ],
+    "TCP": [
+      "Reality",
+      "Backhaul",
+      "SSH"
+    ],
+    "QUIC": [
+      "Hysteria"
+    ],
+    "Emergency": [
+      "Spoof",
+      "DNS"
+    ]
+  },
+  "default_profile": "All"
+}

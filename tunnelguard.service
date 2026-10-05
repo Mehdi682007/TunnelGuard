@@ -1,0 +1,24 @@
+[Unit]
+Description=TunnelGuard route monitor and local SOCKS5 gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/tunnelguard
+LoadCredential=config.json:/opt/tunnelguard/config.json
+ExecStart=/usr/bin/python3 /opt/tunnelguard/tunnelguard.py run --config %d/config.json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+# Template only. Supply real credentials and a matching Hysteria 2 server.
+server: YOUR_SERVER:443
+auth: REPLACE_WITH_YOUR_AUTH
+tls:
+  sni: YOUR_CERTIFICATE_HOSTNAME
+  insecure: false
+socks5:
+  listen: 127.0.0.1:11002
+  disableUDP: true
+# Preserve SOCKS error semantics for TunnelGuard's handshake fallback.
+fastOpen: false

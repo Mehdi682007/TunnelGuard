@@ -1,0 +1,23 @@
+{
+  "log": {"level": "warn"},
+  "inbounds": [
+    {"type": "mixed", "tag": "local", "listen": "127.0.0.1", "listen_port": 11001}
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "reality",
+      "server": "YOUR_SERVER",
+      "server_port": 443,
+      "uuid": "REPLACE_WITH_YOUR_UUID",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "YOUR_SERVER_NAME",
+        "utls": {"enabled": true, "fingerprint": "chrome"},
+        "reality": {"enabled": true, "public_key": "YOUR_SERVER_PUBLIC_KEY", "short_id": "YOUR_SHORT_ID"}
+      }
+    }
+  ],
+  "route": {"final": "reality"}
+}
