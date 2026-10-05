@@ -162,7 +162,7 @@ def validate_candidate(prefix, changes):
                 load_config(path)
 
 
-def transaction(target, changes):
+def transaction(target, changes, journal=None):
     prefix, _ = TARGETS[target]
     pending = STATE/f"pending-{target}.json"
     if pending.exists():
@@ -170,6 +170,8 @@ def transaction(target, changes):
     checked_tree(prefix)
     validate_candidate(prefix, changes)
     identity = snapshot(target)
+    if journal is not None:
+        deploy.write_private(journal, {"snapshot": identity, "phase": "applying"})
     deploy.write_private(pending, {"target": target, "snapshot": identity})
     try:
         for relative, data in changes.items():
@@ -182,7 +184,11 @@ def transaction(target, changes):
     except BaseException:
         restore(identity, target)
         pending.unlink()
+        if journal is not None:
+            private_json(journal, {"snapshot": identity, "phase": "restored"})
         raise
+    if journal is not None:
+        private_json(journal, {"snapshot": identity, "phase": "complete"})
     pending.unlink()
     return identity
 
@@ -330,8 +336,7 @@ def commit_rotation(target, identity):
     plan = json.loads((folder/"plan.json").read_text())
     if plan["target"] != target or tree_digest(TARGETS[target][0]) != plan["before"] or (folder/"committed.json").exists():
         raise ValueError("Rotation target changed or already committed")
-    backup = transaction(target, {k:v.encode() for k,v in plan["changes"].items()})
-    deploy.write_private(folder/"committed.json", {"snapshot": backup})
+    backup = transaction(target, {k:v.encode() for k,v in plan["changes"].items()}, folder/"committed.json")
     return backup
 
 
@@ -399,6 +404,7 @@ def main():
                 committed = folder/"committed.json"
                 if committed.exists():
                     restore(json.loads(committed.read_text())["snapshot"], a.target)
+                    (STATE/f"pending-{a.target}.json").unlink(missing_ok=True)
                 result = {"restored": True}
         print(json.dumps(result))
         return 0
