@@ -28,6 +28,15 @@ class LifecycleTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     m.transaction("client", {"app/tunnelguard.py": b"new"})
             self.assertEqual((prefix/"app/tunnelguard.py").read_text(), "old")
+            self.assertFalse((state/"pending-client.json").exists())
+
+    def test_pending_transaction_blocks_new_changes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp)
+            (state/"pending-client.json").write_text("{}")
+            with patch.object(m, "STATE", state):
+                with self.assertRaisesRegex(ValueError, "recover"):
+                    m.transaction("client", {})
 
     def test_snapshot_tampering_and_traversal_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

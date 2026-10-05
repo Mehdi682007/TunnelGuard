@@ -29,6 +29,8 @@ sudo python3 maintenance.py upgrade --target client
 sudo python3 maintenance.py upgrade --target server --cores
 sudo python3 maintenance.py rollback --target client --snapshot SNAPSHOT_ID
 sudo python3 maintenance.py uninstall --target spoof-client
+sudo python3 maintenance.py snapshots --target client
+sudo python3 maintenance.py recover --target client
 ```
 
 Upgrade uses the current trusted checkout for the guard app; configs and ports are retained.
@@ -36,6 +38,9 @@ Upgrade uses the current trusted checkout for the guard app; configs and ports a
 against the candidate sing-box before replacement. It does not blindly fetch `latest`.
 Each mutation prints a snapshot ID. Files are replaced atomically, services restarted and
 checked; a failed restart triggers restoration. Snapshot hashes reject altered tree contents.
+Upgrade/rotation transactions leave a pending recovery record if interrupted by a kill/power
+failure; `recover` restores that record before a later transaction may proceed. The snapshots
+command lists IDs and timestamps. Uninstall recovery uses its retained snapshot explicitly.
 This is process/config validation, not a proof of end-to-end Internet access. Run doctor next.
 
 Uninstall stops/disables owned units and removes their exact install directory. An attached

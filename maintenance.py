@@ -164,9 +164,13 @@ def validate_candidate(prefix, changes):
 
 def transaction(target, changes):
     prefix, _ = TARGETS[target]
+    pending = STATE/f"pending-{target}.json"
+    if pending.exists():
+        raise ValueError("Interrupted operation exists; run recover first")
     checked_tree(prefix)
     validate_candidate(prefix, changes)
     identity = snapshot(target)
+    deploy.write_private(pending, {"target": target, "snapshot": identity})
     try:
         for relative, data in changes.items():
             path = prefix/relative
@@ -177,7 +181,9 @@ def transaction(target, changes):
         restart(unit_names(target))
     except BaseException:
         restore(identity, target)
+        pending.unlink()
         raise
+    pending.unlink()
     return identity
 
 
@@ -331,7 +337,7 @@ def commit_rotation(target, identity):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("command", choices=["upgrade", "rollback", "uninstall", "prepare-rotation", "stage-rotation", "commit-rotation", "rotation-bundle", "abort-rotation", "certificate-status"])
+    p.add_argument("command", choices=["upgrade", "rollback", "uninstall", "prepare-rotation", "stage-rotation", "commit-rotation", "rotation-bundle", "abort-rotation", "certificate-status", "snapshots", "recover"])
     p.add_argument("--target", required=True, choices=list(TARGETS))
     p.add_argument("--snapshot")
     p.add_argument("--rotation")
@@ -342,7 +348,20 @@ def main():
     a = p.parse_args()
     try:
         with locked():
-            if a.command == "certificate-status":
+            if a.command == "snapshots":
+                snapshots = []
+                for path in STATE.glob("*/meta.json"):
+                    meta = json.loads(path.read_text())
+                    if meta["target"] == a.target:
+                        snapshots.append(dict(id=path.parent.name, created=meta["created"]))
+                result = {"snapshots": snapshots, "interrupted": (STATE/f"pending-{a.target}.json").exists()}
+            elif a.command == "recover":
+                pending = STATE/f"pending-{a.target}.json"
+                record = json.loads(pending.read_text())
+                restore(record["snapshot"], a.target)
+                pending.unlink()
+                result = {"restored": True}
+            elif a.command == "certificate-status":
                 from diagnostics import certificate_days
                 prefix, _ = TARGETS[a.target]
                 name = "server.json" if a.target == "server" else "overlay.json" if a.target.startswith("spoof") else "trojan.json"
