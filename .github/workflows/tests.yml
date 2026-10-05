@@ -35,3 +35,14 @@ jobs:
           printf '{"preserve":true}\n' > "$RUNNER_TEMP/tg install/config.json"
           python install.py --prefix "$RUNNER_TEMP/tg install" --bin-dir "$RUNNER_TEMP/tg bin"
           python -c 'import json,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"])/"tg install/config.json"; assert json.loads(p.read_text())=={"preserve":True}'
+      - name: Install both systemd nodes (Ubuntu)
+        if: runner.os == 'Linux' && matrix.python == '3.12'
+        shell: bash
+        run: |
+          cleanup() {
+            sudo systemctl disable --now tunnelguard-server-server tunnelguard-client-shadowsocks tunnelguard-client-trojan tunnelguard-client-hysteria2 tunnelguard-client-guard || true
+          }
+          trap cleanup EXIT
+          sudo /usr/bin/python3 deploy.py server --address 127.0.0.1 --ports 29443 29444 29445 --output "$RUNNER_TEMP/deployment-server" --apply
+          sudo /usr/bin/python3 deploy.py client --bundle "$RUNNER_TEMP/deployment-server/pairing.json" --output "$RUNNER_TEMP/deployment-client" --apply
+          sudo systemctl is-active tunnelguard-server-server tunnelguard-client-shadowsocks tunnelguard-client-trojan tunnelguard-client-hysteria2 tunnelguard-client-guard

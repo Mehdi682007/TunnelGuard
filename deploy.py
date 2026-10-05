@@ -12,6 +12,7 @@ from pathlib import Path
 import platform
 import secrets
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
@@ -201,8 +202,29 @@ WantedBy=multi-user.target
 """
 
 
+def check_ports(folder, role):
+    listeners = []
+    for name in (["server"] if role == "server" else KINDS):
+        cfg = json.loads((folder/f"{name}.json").read_text())
+        for inbound in cfg["inbounds"]:
+            listeners.append((inbound["listen"], inbound["listen_port"], inbound["type"] == "hysteria2"))
+    if role == "client":
+        cfg = json.loads((folder/"config.json").read_text())
+        listeners.extend(("127.0.0.1", cfg[p], False) for p in ("listen_port", "dashboard_port"))
+    sockets = []
+    try:
+        for host, port, udp in listeners:
+            s = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_DGRAM if udp else socket.SOCK_STREAM)
+            sockets.append(s)
+            s.bind((host, port))
+    finally:
+        for s in sockets:
+            s.close()
+
+
 def apply(folder, role, offline=None):
     prefix = preflight(role)
+    check_ports(folder, role)
     binary = install_core(folder, offline)
     names = ["server"] if role == "server" else list(KINDS)
     for name in names:
@@ -227,8 +249,8 @@ def apply(folder, role, offline=None):
         for name in names:
             unit = Path("/etc/systemd/system")/f"tunnelguard-{role}-{name}.service"
             write_private(unit, unit_text(prefix, name, name == "guard"))
-            unit.chmod(0o644)
             units.append(unit)
+            unit.chmod(0o644)
         subprocess.run(["systemctl", "daemon-reload"], check=True)
         for unit in units:
             started.append(unit.name)

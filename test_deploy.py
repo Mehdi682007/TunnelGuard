@@ -76,6 +76,16 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("-c %d/config.json", text)
         self.assertNotIn("User=root", text)
 
+    def test_occupied_ports_detected_before_installation(self):
+        import socket
+        with tempfile.TemporaryDirectory() as tmp, socket.socket() as occupied:
+            occupied.bind(("127.0.0.1", 0))
+            occupied.listen()
+            folder = Path(tmp)
+            deploy.write_private(folder/"server.json", {"inbounds": [dict(type="trojan", listen="127.0.0.1", listen_port=occupied.getsockname()[1])]})
+            with self.assertRaises(OSError):
+                deploy.check_ports(folder, "server")
+
 
 @unittest.skipUnless(os.environ.get("TG_CORE_TEST") == "1" and sys.platform == "linux", "Opt-in Linux real-core integration")
 class RealCoreTests(unittest.TestCase):
