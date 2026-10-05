@@ -179,6 +179,7 @@ def preflight(role):
 def unit_text(prefix, name, guard=False):
     config = "config.json" if guard else f"{name}.json"
     command = f"/usr/bin/python3 {prefix}/app/tunnelguard.py run --config %d/config.json" if guard else f"{prefix}/sing-box run -c %d/config.json"
+    families = "AF_INET AF_INET6 AF_UNIX" + ("" if guard else " AF_NETLINK")
     return f"""[Unit]
 Description=TunnelGuard managed {name}
 After=network-online.target
@@ -195,7 +196,7 @@ ProtectSystem=strict
 ProtectHome=yes
 ProtectKernelTunables=yes
 ProtectControlGroups=yes
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictAddressFamilies={families}
 UMask=0077
 [Install]
 WantedBy=multi-user.target

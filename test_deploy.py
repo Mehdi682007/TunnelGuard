@@ -75,6 +75,8 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("LoadCredential=config.json:", text)
         self.assertIn("-c %d/config.json", text)
         self.assertNotIn("User=root", text)
+        self.assertIn("AF_NETLINK", text)
+        self.assertNotIn("AF_NETLINK", deploy.unit_text(Path("/opt/tunnelguard-node/client"), "guard", True))
 
     def test_occupied_ports_detected_before_installation(self):
         import socket
