@@ -26,9 +26,10 @@ class LifecycleTests(unittest.TestCase):
             with patch.dict(m.TARGETS, client=(prefix, [])), patch.object(m, "STATE", state), patch.object(m, "UNITS", units), \
                  patch.object(m, "run"), patch.object(m, "restart", side_effect=[RuntimeError("start failed"), None]):
                 with self.assertRaises(RuntimeError):
-                    m.transaction("client", {"app/tunnelguard.py": b"new"})
+                    m.transaction("client", {"app/tunnelguard.py": b"new"}, state/"rotation.json")
             self.assertEqual((prefix/"app/tunnelguard.py").read_text(), "old")
             self.assertFalse((state/"pending-client.json").exists())
+            self.assertEqual(json.loads((state/"rotation.json").read_text())["phase"], "restored")
 
     def test_pending_transaction_blocks_new_changes(self):
         with tempfile.TemporaryDirectory() as temp:

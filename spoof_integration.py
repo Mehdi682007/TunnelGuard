@@ -19,6 +19,8 @@ import deploy
 import deploy_spoof as spoof
 import maintenance
 import diagnostics
+import pair_maintenance
+from types import SimpleNamespace
 from test_spoof import settings
 
 NAMESPACE = "tg-spoof-ci"
@@ -117,6 +119,16 @@ def main():
                 maintenance.restore(detached, "spoof-client")
                 dependency = json.loads((maintenance.STATE/detached/"detached.json").read_text())["client_snapshot"]
                 maintenance.restore(dependency, "client")
+            # Validate installed timer/service syntax without activating fake SSH hosts.
+            timer_args = SimpleNamespace(server="test-exit", client="test-iran", checkout="/opt/test checkout",
+                                         address="127.0.0.2", family="base", if_due_days=30)
+            with patch.object(pair_maintenance.subprocess, "run"):
+                pair_maintenance.install_timer(timer_args)
+            run("systemd-analyze", "verify", "/etc/systemd/system/tunnelguard-renew-base.service",
+                "/etc/systemd/system/tunnelguard-renew-base.timer")
+            Path("/etc/systemd/system/tunnelguard-renew-base.service").unlink()
+            Path("/etc/systemd/system/tunnelguard-renew-base.timer").unlink()
+            run("systemctl", "daemon-reload")
             # Sustained concurrent probes stay inside this namespace and leave a
             # bounded JSON report. Duration is controllable for manual CI soak runs.
             seconds = int(os.environ.get("TG_SOAK_SECONDS", "60"))
