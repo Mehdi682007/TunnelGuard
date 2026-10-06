@@ -1,5 +1,31 @@
 # TunnelGuard validation record
 
+## 2.4 transport, forwarding and public panel validation
+
+The [initial 2.4 run](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37400704220)
+passed all six Windows/Linux and native amd64/ARM64 jobs. The default suite discovers
+52 tests (51 pass, one real-core test is opt-in). Native integration transfers actual
+HTTP payloads through Shadowsocks, Trojan, Hysteria2, VMess, VLESS, TUIC, AnyTLS and
+the userspace WireGuard SOCKS bridge. Follow-up CI also exercises reverse WireGuard
+initiation, seven-protocol credential rotation and fresh restricted reverse SSH installation.
+
+An authorized two-VPS field trial on 2026-10-06 installed nine routes. In a bounded
+120-second probe run, reverse SSH succeeded in 9/9 samples; the other eight routes
+failed in 9/9 samples each. Both WireGuard initiation directions failed on that path.
+This is a short connectivity measurement, not a throughput or long-term availability result.
+Spoof is visible in the catalog but was not configured in this field trial. Its raw
+transport tests remain isolated network-namespace tests, not proof of ISP compatibility.
+
+A temporary public TCP listener on the receiving VPS delivered an exact HTTP fixture
+from the sending VPS's loopback address through reverse SSH. The listener and fixture
+were removed afterwards. No x-ui installation or real user inbound was present.
+The public HTTPS dashboard returned 401 without authentication and 200 with it;
+certificate chain/IP verification succeeded using its exported self-signed certificate.
+Reports were checked for absence of dashboard TLS keys and authentication secrets.
+
+The records below describe earlier releases and their limitations at the time.
+No release promises that a particular number of transports will work on every filtered IP.
+
 ## 2.3 operations and native ARM64 validation
 
 [Final functional run](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37340018201)
