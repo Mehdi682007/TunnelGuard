@@ -37,4 +37,4 @@ sudo cat /root/tg-panel/login.txt
 
 Visit `https://YOUR_IRAN_IP:8787`; username is `admin`, password is in the private file. Never publish that file. The self-signed certificate lasts 365 days: verify its printed SHA256 fingerprint before trusting it in the browser. To renew/change the password, rerun with a new output directory. Plain HTTP no longer works. Restore the printed maintenance snapshot to revert. Allow the port in your provider firewall if necessary.
 
-The dashboard's command builder only prepares commands; apply them over SSH. This feature does not install x-ui or create a destination service on 4748.
+TunnelGuard does not install x-ui or create the destination service on 4748. Create the Xray inbound on the outside server first and verify it with `ss -ltnp | grep 4748`. In Tunnel Manager, apply a public listener on `0.0.0.0:4748` with target `127.0.0.1:4748`; the API now waits for validation/restart and returns the real apply error instead of acknowledging a background job prematurely.
