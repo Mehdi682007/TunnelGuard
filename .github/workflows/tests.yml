@@ -28,6 +28,8 @@ jobs:
         run: |
           curl --fail --location --output "$RUNNER_TEMP/sing-box.tar.gz" https://github.com/SagerNet/sing-box/releases/download/v1.14.2/sing-box-1.14.2-linux-${{ matrix.arch }}.tar.gz
           curl --fail --location --output "$RUNNER_TEMP/spoof" https://github.com/ParsaKSH/spoof-tunnel/releases/download/v3.1.0-beta.0/spoof-linux-${{ matrix.arch }}
+      - name: Seven protocols and userspace WireGuard payload test
+        run: python3 integration_v24.py --core-archive "$RUNNER_TEMP/sing-box.tar.gz"
       - name: Isolated raw transport and paired service integration
         timeout-minutes: 140
         env:
@@ -75,14 +77,14 @@ jobs:
             if [ -n "${fixture_pid:-}" ]; then kill "$fixture_pid" || true; fi
           }
           trap cleanup EXIT
-          sudo /usr/bin/python3 deploy.py server --address 127.0.0.1 --ports 29443 29444 29445 --output "$RUNNER_TEMP/deployment-server" --apply
+          sudo /usr/bin/python3 deploy.py server --address 127.0.0.1 --ports 29443 29444 29445 --extra-ports 29446 29447 29448 29449 --output "$RUNNER_TEMP/deployment-server" --apply
           sudo /usr/bin/python3 deploy.py client --bundle "$RUNNER_TEMP/deployment-server/pairing.json" --output "$RUNNER_TEMP/deployment-client" --apply
           sudo systemctl is-active tunnelguard-server-server tunnelguard-client-shadowsocks tunnelguard-client-trojan tunnelguard-client-hysteria2 tunnelguard-client-guard
           mkdir "$RUNNER_TEMP/http-fixture"
           printf 'systemd-transport-ok' > "$RUNNER_TEMP/http-fixture/payload"
           python -m http.server 28880 --bind 127.0.0.1 --directory "$RUNNER_TEMP/http-fixture" >/dev/null 2>&1 &
           fixture_pid=$!
-          for port in 11001 11002 11003; do
+          for port in 11001 11002 11003 11006 11007 11008 11009; do
             result=$(curl -q --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 1 --max-time 5 --noproxy '' --proxy "socks5h://127.0.0.1:$port" http://127.0.0.1:28880/payload)
             test "$result" = 'systemd-transport-ok'
           done

@@ -113,7 +113,7 @@ Add per-route endpoints which are **already forwarded to the same application se
 
 The consuming application connects to 127.0.0.1:18080. Target ports here are application forwards, **not SOCKS endpoints**. Ensure the proxy used for route health and its application forward really traverse the same path. An HTTP probe does not verify every service.
 
-All listeners remain loopback-only. Application UDP, SOCKS UDP ASSOCIATE and live session migration are not implemented. Carrying TCP over a QUIC/UDP-based core does not add those features.
+Listeners default to loopback. Version 2.4 adds explicit public TCP service forwards and authenticated HTTPS publishing; see [FORWARDING](FORWARDING.md). Application UDP, SOCKS UDP ASSOCIATE and live session migration are not implemented. Carrying TCP over a QUIC/UDP-based core does not add those features.
 
 ## Persistence, reporting and diagnostics
 

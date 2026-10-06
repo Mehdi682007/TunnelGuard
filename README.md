@@ -1,5 +1,7 @@
 # TunnelGuard
 
+**New in 2.4:** [ten installer options](TRANSPORTS.md), [reverse SSH](REVERSE.md), [userspace WireGuard](WIREGUARD.md), [TCP/x-ui forwarding and authenticated HTTPS dashboard](FORWARDING.md). Available installers are shown separately from configured/healthy routes. No minimum number of working protocols is guaranteed.
+
 **[فارسی — راهنمای کامل](README.fa.md)** · **English** · [Multi-layer guide (English)](MULTILAYER.md) · [راهنمای چندلایه و Spoof](MULTILAYER.fa.md)
 
 Local tunnel monitoring, route selection and TCP failover, with a Persian/English dashboard.
@@ -84,7 +86,7 @@ Configure the consuming application to use SOCKS5 **127.0.0.1:1088**, with remot
 curl --noproxy "" --proxy socks5h://127.0.0.1:1088 https://example.com
 ```
 
-Only applications using this gateway are routed by TunnelGuard. The program binds both gateway and dashboard to loopback. To access an instance on your VPS, run this on your own computer:
+Only applications using this gateway are routed by TunnelGuard. By default, both gateway and dashboard bind to loopback. The optional HTTPS publisher and explicit public TCP forwards are documented in [FORWARDING](FORWARDING.md). To access an instance on your VPS, run this on your own computer:
 
 ```bash
 ssh -N -L 8787:127.0.0.1:8787 -L 1088:127.0.0.1:1088 user@YOUR_SERVER

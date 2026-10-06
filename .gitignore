@@ -14,5 +14,9 @@ reports/
 .tunnelguard-*
 deployment*/
 pairing.json
+acceptance.json
+offer.json
+login.txt
+key
 server.json
 *-report.json

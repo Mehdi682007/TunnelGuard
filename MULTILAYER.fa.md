@@ -161,3 +161,6 @@ listener فقط loopback است؛ انتشار عمومی به کنترل دست
 مستندات بررسی‌شده: [Backhaul](https://github.com/Musixal/Backhaul)، [Rathole](https://github.com/rathole-org/rathole)، [GOST](https://gost.run/en/reference/configuration/file/)، [Hysteria](https://v2.hysteria.network/docs/advanced/Full-Client-Config/)، [sing-box](https://sing-box.sagernet.org/configuration/inbound/mixed/)، [Xray](https://xtls.github.io/document/command.html)، [FRP](https://gofrp.org/en/docs/setup/)، [SSH](https://man.openbsd.org/ssh.1).
 
 رفتار مدیر با پروکسی‌های محلی و فرایند آزمایشی بررسی شده است. باینری‌های خارجی، ترافیک spoof و سرورهای ایران در این محیط اجرا نشده‌اند؛ این بسته مدرک پایداری میدانی آن‌ها نیست.
+
+
+نسخهٔ ۲.۴ فوروارد از داخل پراکسی و انتشار صریح TCP/پنل HTTPS را اضافه کرده است؛ نمونه‌های بالا حالت قدیمی محلی هستند. [راهنمای فوروارد جدید](FORWARDING.fa.md).

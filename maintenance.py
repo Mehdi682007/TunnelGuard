@@ -21,9 +21,11 @@ STATE = Path("/var/lib/tunnelguard-maintenance")
 UNITS = Path("/etc/systemd/system")
 TARGETS = {
     "server": (Path("/opt/tunnelguard-node/server"), ["server"]),
-    "client": (Path("/opt/tunnelguard-node/client"), [*deploy.KINDS, "guard"]),
+    "client": (Path("/opt/tunnelguard-node/client"), [*deploy.ALL_KINDS, "guard"]),
     "spoof-server": (Path("/opt/tunnelguard-spoof/server"), ["overlay", "carrier"]),
     "spoof-client": (Path("/opt/tunnelguard-spoof/client"), ["overlay", "carrier", "guard"]),
+    "wireguard-server": (Path("/opt/tunnelguard-wireguard/server"), ['core']),
+    "wireguard-client": (Path("/opt/tunnelguard-wireguard/client"), ['core']),
 }
 
 
@@ -150,7 +152,7 @@ def validate_candidate(prefix, changes):
         for name, data in changes.items():
             if name.endswith(".json") and name not in ("config.json", "guard-backup.json"):
                 cfg = json.loads(data)
-                if "inbounds" in cfg or "outbounds" in cfg:
+                if "inbounds" in cfg or "outbounds" in cfg or 'endpoints' in cfg:
                     path = folder/Path(name).name
                     path.write_bytes(data)
                     binary = prefix/"sing-box"
@@ -219,30 +221,40 @@ def upgrade(target, cores=False):
     return transaction(target, changes)
 
 
-def remove_spoof_route(cfg):
+def remove_spoof_route(cfg, route='Spoof'):
     cfg = copy.deepcopy(cfg)
-    cfg["routes"] = [r for r in cfg["routes"] if r["name"] != "Spoof"]
+    cfg["routes"] = [r for r in cfg["routes"] if r["name"] != route]
     if not cfg["routes"]:
         raise ValueError("Cannot detach the only route")
     profiles = cfg.get("profiles", {})
     for name in list(profiles):
-        profiles[name] = [r for r in profiles[name] if r != "Spoof"]
+        profiles[name] = [r for r in profiles[name] if r != route]
         if not profiles[name]:
             del profiles[name]
     if cfg.get("default_profile") not in profiles:
         if not profiles:
             profiles["All"] = [r["name"] for r in cfg["routes"]]
         cfg["default_profile"] = next(iter(profiles))
+    for forward in cfg.get('tcp_forwards', []):
+        forward['targets'].pop(route, None)
+        if not forward['targets']:
+            raise ValueError('Remove or remap dependent TCP forwards first')
     return cfg
 
 
 def uninstall(target):
     prefix, _ = TARGETS[target]
+    if target=='client' and TARGETS['wireguard-client'][0].exists():
+        raise ValueError('Remove attached wireguard-client first')
     if target == "client" and TARGETS["spoof-client"][0].exists() and not (TARGETS["spoof-client"][0]/"app").exists():
         raise ValueError("Remove attached spoof-client first")
     identity = snapshot(target)
     detach = None
     try:
+        if target=='wireguard-client':
+            config=TARGETS['client'][0]/'config.json'
+            cfg=remove_spoof_route(json.loads(config.read_text()),'wireguard')
+            detach=transaction('client',{'config.json':json.dumps(cfg).encode()})
         if target == "spoof-client" and (prefix/"guard-backup.json").exists():
             config = TARGETS["client"][0]/"config.json"
             if config.exists():
@@ -270,7 +282,8 @@ def prepare_rotation(target, address):
     prefix, _ = TARGETS[target]
     name = "server.json" if target == "server" else "overlay.json"
     old = json.loads((prefix/name).read_text())
-    expected = set(deploy.KINDS) if target == "server" else {"hysteria2"}
+    extra = target == 'server' and any(i['type'] in deploy.EXTRAS for i in old['inbounds'])
+    expected = set(deploy.ALL_KINDS if extra else deploy.KINDS) if target == "server" else {"hysteria2"}
     if {i["type"] for i in old["inbounds"]} != expected or len(old["inbounds"]) != len(expected):
         raise ValueError("Rotation requires the standard single-pair deployment")
     if any(len(i.get("users", [])) != 1 for i in old["inbounds"] if i["type"] != "shadowsocks"):
@@ -278,7 +291,8 @@ def prepare_rotation(target, address):
     ports = [next(i["listen_port"] for i in old["inbounds"] if i["type"] == kind) for kind in deploy.KINDS] if target == "server" else [18443, 18444, 18445]
     identity = uuid.uuid4().hex
     folder = STATE/("rotation-"+identity)
-    b = deploy.generate_server(folder, address, ports)
+    extra_ports = [next(i['listen_port'] for i in old['inbounds'] if i['type']==k) for k in deploy.EXTRAS] if extra else None
+    b = deploy.generate_server(folder, address, ports, extra_ports)
     generated = json.loads((folder/"server.json").read_text())
     for inbound in old["inbounds"]:
         fresh = next(i for i in generated["inbounds"] if i["type"] == inbound["type"])
@@ -311,7 +325,9 @@ def stage_client(target, bundle):
     folder = rotation_folder(identity)
     if folder.exists():
         raise ValueError("Rotation already staged")
-    names = ["overlay"] if target == "spoof-client" else list(deploy.KINDS)
+    names = ["overlay"] if target == "spoof-client" else [k for k in deploy.ALL_KINDS if (prefix/f'{k}.json').is_file()]
+    if target == 'client' and set(names) != set(bundle['ports']):
+        raise ValueError('Rotation transport set mismatch')
     changes = {}
     if target == "spoof-client":
         if json.loads((prefix/"carrier.json").read_text())["remote"] != bundle["address"]:
@@ -321,7 +337,13 @@ def stage_client(target, bundle):
         for out in cfg["outbounds"]:
             if target == "client" and (out["server"] != bundle["address"] or out["server_port"] != bundle["ports"][out["type"]]):
                 raise ValueError("Rotation peer mismatch")
-            out["password"] = bundle["passwords"][out["type"]]
+            if out['type'] in deploy.EXTRAS:
+                if out['type']!='anytls':
+                    out['uuid'] = bundle['uuids'][out['type']]
+                if out['type'] in ('tuic','anytls'):
+                    out['password'] = bundle['extra_passwords'][out['type']]
+            else:
+                out["password"] = bundle["passwords"][out["type"]]
             if "tls" in out:
                 out["tls"]["certificate"] = bundle["certificate"].splitlines()
         changes[f"{name}.json"] = json.dumps(cfg).encode()

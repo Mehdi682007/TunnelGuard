@@ -10,6 +10,7 @@ import asyncio
 import base64
 import contextlib
 import getpass
+import hashlib
 import ipaddress
 import json
 import math
@@ -19,17 +20,19 @@ import re
 import secrets
 import shutil
 import signal
+import ssl
 import statistics
 import struct
 import subprocess
 import sys
 import time
+import tempfile
 from collections import deque
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.3.0"
+VERSION = "2.4.0"
 ROOT = Path(__file__).resolve().parent
 LANG = "fa"
 
@@ -122,6 +125,14 @@ def load_config(path):
                     connect_attempts=3, probe_concurrency=8)
     for k, v in defaults.items():
         c.setdefault(k, v)
+    dashboard_bind = ipaddress.ip_address(c.setdefault('dashboard_host', '127.0.0.1'))
+    if not dashboard_bind.is_loopback or c.get('dashboard_tls'):
+        ipaddress.ip_address(c['dashboard_address'])
+        if not re.fullmatch(r'[a-f0-9]{64}', c.get('dashboard_auth_sha256', '')):
+            raise ConfigError('Public dashboard requires authentication')
+        tls = c.get('dashboard_tls', {})
+        if not isinstance(tls, dict) or not tls.get('certificate', '').startswith('-----BEGIN CERTIFICATE-----') or 'PRIVATE KEY-----' not in tls.get('key', ''):
+            raise ConfigError('Public dashboard requires TLS certificate and private key')
     bounds = dict(interval=(1, 3600), timeout=(1, 60), failures=(1, 20),
                   recovery=(1, 20), cooldown=(0, 3600), listen_port=(1, 65535),
                   dashboard_port=(1, 65535), max_connections=(1, 4096),
@@ -206,17 +217,22 @@ def load_config(path):
         if type(port) is not int or not 1 <= port <= 65535 or port in occupied:
             raise ConfigError("Each TCP forward needs a unique listen_port")
         occupied.add(port)
+        bind = ipaddress.ip_address(f.setdefault("listen_host", "127.0.0.1"))
+        if not bind.is_loopback and f.get("allow_public") is not True:
+            raise ConfigError("Non-loopback forward requires allow_public=true")
         if not isinstance(f.get("targets"), dict) or not f["targets"]:
             raise ConfigError("Each TCP forward needs per-route targets")
         for name, target in f["targets"].items():
             if name not in names or not isinstance(target, dict):
                 raise ConfigError("Invalid forwarding target route")
             host, port = target.get("host"), target.get("port")
+            if target.get("via", "direct") not in ("direct", "proxy"):
+                raise ConfigError("Forward via must be direct or proxy")
             if not isinstance(host, str) or not host or not re.fullmatch(r"[A-Za-z0-9_.:-]+", host) or type(port) is not int or not 1 <= port <= 65535:
                 raise ConfigError("Forward target requires host and port")
     for f in c["tcp_forwards"]:
         for target in f["targets"].values():
-            if target["host"] in ("localhost", "127.0.0.1", "::1") and target["port"] in occupied:
+            if target.get("via", "direct") == "direct" and target["host"] in ("localhost", "127.0.0.1", "::1") and target["port"] in occupied:
                 raise ConfigError("TCP forward points back to a TunnelGuard listener")
     for r in routes:
         p = url_check(r["proxy"], True)
@@ -506,7 +522,7 @@ class Guard:
                     gateway=f"127.0.0.1:{self.cfg['listen_port']}",
                     profile=self.profile, profiles=self.cfg["profiles"], preferred=self.preferred,
                     policy=self.policy, engines={k: v.public() for k, v in self.supervisors.items()},
-                    forwards=[dict(name=f["name"], listen_port=f["listen_port"]) for f in self.cfg["tcp_forwards"]],
+                    forwards=[dict(name=f["name"], listen_host=f.get("listen_host", "127.0.0.1"), listen_port=f["listen_port"]) for f in self.cfg["tcp_forwards"]],
                     routes=[r.public() for r in self.routes], events=list(self.events), history=list(self.history))
 
     async def tick(self):
@@ -665,7 +681,10 @@ async def dial(guard, host=None, port=None, forward=None):
             async with asyncio.timeout(guard.cfg["timeout"]):
                 if forward:
                     target = forward["targets"][route.name]
-                    result = await asyncio.open_connection(target["host"], target["port"], happy_eyeballs_delay=0.25)
+                    if target.get("via", "direct") == "proxy":
+                        result = await upstream(route.proxy, target["host"], target["port"])
+                    else:
+                        result = await asyncio.open_connection(target["host"], target["port"], happy_eyeballs_delay=0.25)
                 else:
                     result = await upstream(route.proxy, host, port)
             if route not in guard.eligible():
@@ -768,10 +787,17 @@ async def dashboard(guard, reader, writer):
                 headers[key] = value.strip()
         host = headers.get("host", "")
         expected = {f"127.0.0.1:{guard.cfg['dashboard_port']}", f"localhost:{guard.cfg['dashboard_port']}"}
-        if host not in expected:
+        if guard.cfg.get('dashboard_address'):
+            address = guard.cfg['dashboard_address']
+            expected.add(f'[{address}]:{guard.cfg["dashboard_port"]}' if ':' in address else f'{address}:{guard.cfg["dashboard_port"]}')
+        auth = guard.cfg.get('dashboard_auth_sha256')
+        if auth and not secrets.compare_digest(hashlib.sha256(headers.get('authorization', '').encode()).hexdigest(), auth):
+            code, mime, body = '401 Unauthorized', 'text/plain', b'Authentication required'
+        elif host not in expected:
             code, mime, body = "403 Forbidden", "text/plain", b"Forbidden"
         elif method == "POST" and path == "/api/control":
-            valid_origin = headers.get("origin") == f"http://{host}"
+            scheme = 'https' if writer.get_extra_info('ssl_object') else 'http'
+            valid_origin = headers.get("origin") == f"{scheme}://{host}"
             valid_token = secrets.compare_digest(headers.get("x-tunnelguard-token", ""), guard.control_token)
             length = headers.get("content-length", "")
             if not valid_origin or not valid_token or headers.get("content-type") != "application/json" or "transfer-encoding" in headers:
@@ -791,7 +817,8 @@ async def dashboard(guard, reader, writer):
             code, mime, body = "200 OK", "text/html; charset=utf-8", dashboard_html(token=guard.control_token).encode()
         else:
             code, mime, body = "404 Not Found", "text/plain", b"Not found"
-        writer.write((f"HTTP/1.1 {code}\r\nContent-Type: {mime}\r\nContent-Length: {len(body)}\r\n"
+        challenge = 'WWW-Authenticate: Basic realm="TunnelGuard", charset="UTF-8"\r\n' if code.startswith('401') else ''
+        writer.write((f"HTTP/1.1 {code}\r\n{challenge}Content-Type: {mime}\r\nContent-Length: {len(body)}\r\n"
                       "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n"
                       "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'\r\n"
                       "Connection: close\r\n\r\n").encode() + body)
@@ -858,8 +885,18 @@ async def serve(cfg, args):
         if not guard.demo:
             servers.append(await asyncio.start_server(lambda r, w: gateway(guard, r, w), "127.0.0.1", cfg["listen_port"], limit=16384))
             for spec in cfg["tcp_forwards"]:
-                servers.append(await asyncio.start_server(lambda r, w, s=spec: tcp_forward(guard, s, r, w), "127.0.0.1", spec["listen_port"], limit=16384))
-        servers.append(await asyncio.start_server(lambda r, w: dashboard(guard, r, w), "127.0.0.1", cfg["dashboard_port"], limit=16384))
+                servers.append(await asyncio.start_server(lambda r, w, s=spec: tcp_forward(guard, s, r, w), spec.get("listen_host", "127.0.0.1"), spec["listen_port"], limit=16384))
+        context = None
+        if cfg.get('dashboard_tls'):
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            with tempfile.TemporaryDirectory() as temporary:
+                cert, key = Path(temporary)/'cert.pem', Path(temporary)/'key.pem'
+                cert.write_text(cfg['dashboard_tls']['certificate'])
+                key.write_text(cfg['dashboard_tls']['key'])
+                key.chmod(0o600)
+                context.load_cert_chain(cert, key)
+        servers.append(await asyncio.start_server(lambda r, w: dashboard(guard, r, w), cfg.get('dashboard_host', '127.0.0.1'), cfg["dashboard_port"], limit=16384, ssl=context, **({'ssl_handshake_timeout':5} if context else {})))
         if not guard.demo and args.manage_engines:
             for definition, route in zip(cfg["routes"], guard.routes):
                 if "engine" not in definition:
@@ -874,7 +911,10 @@ async def serve(cfg, args):
                 tasks.append(asyncio.create_task(supervisor.run()))
         mode = say("شبیه‌سازی؛ پروکسی غیرفعال", "SIMULATION - no gateway") if guard.demo else 'LIVE - SOCKS5 127.0.0.1:' + str(cfg['listen_port'])
         print(f"TunnelGuard {VERSION} | {mode}", flush=True)
-        print(say("داشبورد", "Dashboard") + f": http://127.0.0.1:{cfg['dashboard_port']} | Ctrl+C " + say("برای توقف", "to stop"), flush=True)
+        panel_scheme = 'https' if context else 'http'
+        panel_address = cfg.get('dashboard_address', '127.0.0.1')
+        if ':' in panel_address: panel_address = f'[{panel_address}]'
+        print(say("داشبورد", "Dashboard") + f": {panel_scheme}://{panel_address}:{cfg['dashboard_port']} | Ctrl+C " + say("برای توقف", "to stop"), flush=True)
         monitor = asyncio.create_task(demo_monitor(guard) if guard.demo else guard.monitor())
         async def reporter():
             while True:
