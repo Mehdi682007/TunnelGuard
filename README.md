@@ -1,5 +1,7 @@
 # TunnelGuard
 
+**2.5: [two-server tunnel management from the panel](TUNNELS.md)** — SSH, Chisel, WireGuard, Paqet, Spoof, IPIP, GRE and VXLAN, direct/reverse channels, Spoof source inputs, paired exit agent and forwarding for existing 3x-ui inbounds. Fresh installation needs no VMess/VLESS deployment. The 2.4 proxy installers below remain for compatibility and are not counted as independent network tunnel methods.
+
 **New in 2.4:** [ten installer options](TRANSPORTS.md), [reverse SSH](REVERSE.md), [userspace WireGuard](WIREGUARD.md), [TCP/x-ui forwarding and authenticated HTTPS dashboard](FORWARDING.md). Available installers are shown separately from configured/healthy routes. No minimum number of working protocols is guaranteed.
 
 **[فارسی — راهنمای کامل](README.fa.md)** · **English** · [Multi-layer guide (English)](MULTILAYER.md) · [راهنمای چندلایه و Spoof](MULTILAYER.fa.md)

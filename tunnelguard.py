@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 ROOT = Path(__file__).resolve().parent
 LANG = "fa"
 
@@ -151,8 +151,8 @@ def load_config(path):
     if c["listen_port"] == c["dashboard_port"]:
         raise ConfigError("Gateway and dashboard ports must differ")
     routes = c.get("routes", [])
-    if not isinstance(routes, list) or not 1 <= len(routes) <= 16:
-        raise ConfigError("Configure 1..16 routes")
+    if not isinstance(routes, list) or not 0 <= len(routes) <= 64:
+        raise ConfigError("Configure 0..64 routes; an empty gateway stays closed")
     names = set()
     for r in routes:
         if not isinstance(r, dict) or not isinstance(r.get("name"), str) or not isinstance(r.get("proxy"), str):
@@ -197,7 +197,7 @@ def load_config(path):
     if not isinstance(profiles, dict) or not 1 <= len(profiles) <= 16:
         raise ConfigError("profiles must contain 1..16 named route lists")
     for name, members in profiles.items():
-        if not re.fullmatch(r"[A-Za-z0-9_-]{1,24}", name) or not isinstance(members, list) or not members or any(not isinstance(n, str) or n not in names for n in members):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,24}", name) or not isinstance(members, list) or (not members and routes) or any(not isinstance(n, str) or n not in names for n in members):
             raise ConfigError("Invalid profile name or route member")
     c.setdefault("default_profile", next(iter(profiles)))
     if c["default_profile"] not in profiles:
@@ -770,6 +770,21 @@ def dashboard_html(snapshot=None, token=None):
     return html.replace("/*SNAPSHOT*/null", initial).replace("/*CONTROL*/null", json.dumps(token))
 
 
+async def manager_request(data):
+    """Fixed local endpoint; the web process has no arbitrary command execution."""
+    remote = None
+    try:
+        source, remote = await asyncio.wait_for(asyncio.open_unix_connection('/run/tunnelguard-manager/control.sock'), 2)
+        remote.write(json.dumps(data).encode()+b'\n')
+        await remote.drain()
+        raw = await asyncio.wait_for(source.readline(), 20)
+        return json.loads(raw)
+    except (OSError, ValueError, asyncio.TimeoutError, AttributeError):
+        return {'available':False,'error':'Tunnel manager unavailable; install and pair nodes first','status':503}
+    finally:
+        if remote: await close(remote)
+
+
 async def dashboard(guard, reader, writer):
     task = asyncio.current_task()
     guard.tasks.add(task)
@@ -791,11 +806,23 @@ async def dashboard(guard, reader, writer):
             address = guard.cfg['dashboard_address']
             expected.add(f'[{address}]:{guard.cfg["dashboard_port"]}' if ':' in address else f'{address}:{guard.cfg["dashboard_port"]}')
         auth = guard.cfg.get('dashboard_auth_sha256')
-        if auth and not secrets.compare_digest(hashlib.sha256(headers.get('authorization', '').encode()).hexdigest(), auth):
+        if method == 'POST' and path == '/api/peer' and host in expected and auth and writer.get_extra_info('ssl_object'):
+            length = headers.get('content-length', '')
+            if not length.isdigit() or not 1 <= int(length) <= 4096 or 'transfer-encoding' in headers:
+                code, mime, body = '400 Bad Request', 'application/json', b'{"error":"Invalid peer request"}'
+            else:
+                payload = json.loads(await asyncio.wait_for(reader.readexactly(int(length)), 3))
+                result = await manager_request(dict(op='peer',data=payload,authorization=headers.get('authorization','')))
+                code = '401 Unauthorized' if result.get('status')==401 else '400 Bad Request' if result.get('error') else '200 OK'
+                mime, body = 'application/json', json.dumps(result).encode()
+        elif auth and not secrets.compare_digest(hashlib.sha256(headers.get('authorization', '').encode()).hexdigest(), auth):
             code, mime, body = '401 Unauthorized', 'text/plain', b'Authentication required'
         elif host not in expected:
             code, mime, body = "403 Forbidden", "text/plain", b"Forbidden"
-        elif method == "POST" and path == "/api/control":
+        elif method == 'GET' and path == '/api/tunnels':
+            result = await manager_request({'op':'status'})
+            code, mime, body = '200 OK', 'application/json', json.dumps(result).encode()
+        elif method == "POST" and path in ("/api/control", "/api/tunnels"):
             scheme = 'https' if writer.get_extra_info('ssl_object') else 'http'
             valid_origin = headers.get("origin") == f"{scheme}://{host}"
             valid_token = secrets.compare_digest(headers.get("x-tunnelguard-token", ""), guard.control_token)
@@ -807,8 +834,15 @@ async def dashboard(guard, reader, writer):
             else:
                 try:
                     payload = await asyncio.wait_for(reader.readexactly(int(length)), 3)
-                    guard.control(json.loads(payload))
-                    code, mime, body = "200 OK", "application/json", b'{"ok":true}'
+                    data = json.loads(payload)
+                    if path == '/api/tunnels':
+                        if data.get('op') not in ('create','delete','test','forward') or guard.demo:
+                            raise ValueError('Invalid manager operation')
+                        result = await manager_request(data)
+                        code, mime, body = ('400 Bad Request' if result.get('error') else '200 OK'), 'application/json', json.dumps(result).encode()
+                    else:
+                        guard.control(data)
+                        code, mime, body = "200 OK", "application/json", b'{"ok":true}'
                 except (ValueError, TypeError, KeyError):
                     code, mime, body = "400 Bad Request", "application/json", b'{"error":"Invalid action or route not eligible"}'
         elif method == "GET" and path == "/api/status":

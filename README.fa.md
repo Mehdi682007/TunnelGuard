@@ -1,5 +1,7 @@
 # TunnelGuard — آزمایشگاه و نگهبان مسیر
 
+**نسخهٔ ۲.۵: [ساخت تانل بین دو سرور از پنل](TUNNELS.fa.md)** — SSH، Chisel، WireGuard، Paqet، Spoof، IPIP، GRE و VXLAN با حالت معمولی/معکوس، ورود IPهای Spoof، جفت‌سازی عامل خارج و فوروارد inbound موجود در 3x-ui. نصب تازه نیازی به نصب VMess/VLESS ندارد. توضیحات ۲.۴ در پایین مربوط به پراکسی‌های نسخهٔ قبلی است؛ آن‌ها روش‌های مستقل تانل شبکه شمرده نمی‌شوند.
+
 **جدید در ۲.۴:** [ده گزینهٔ نصب تانل](TRANSPORTS.fa.md)، [SSH معکوس](REVERSE.fa.md)، [WireGuard](WIREGUARD.fa.md)، [فوروارد پورت x-ui و پنل HTTPS با رمز](FORWARDING.fa.md). فهرست قابل نصب از مسیر پیکربندی‌شده و سالم جداست؛ تعداد مسیر سالم روی همهٔ شبکه‌ها تضمین نمی‌شود.
 
 **فارسی** · **[English documentation](README.md)** · [دانلود نسخه‌ها](https://github.com/Mehdi682007/TunnelGuard/releases)

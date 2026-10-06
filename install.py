@@ -10,6 +10,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent
 FILES = ["tunnelguard.py", "engines.py", "dashboard.html", "config.example.json",
+         "install_manager.py", "tunnel_manager.py", "tunnel_methods.py", "tunnel_assets.py", "tunnel_node.py", "tunnel_runtime.py", "TUNNELS.md", "TUNNELS.fa.md",
          "config.multilayer.example.json", "config.managed.example.json",
          "README.md", "README.fa.md", "MULTILAYER.md", "MULTILAYER.fa.md",
          "deploy.py", "deploy_spoof.py", "deploy_extra.py", "deploy_reverse.py", "deploy_wireguard.py", "manage.py", "publish_panel.py",
