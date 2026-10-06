@@ -194,20 +194,20 @@ def dispatch(message):
             if any(v['phase'] not in ('ready','failed') for v in STATE['links'].values()): raise ValueError('Wait for the link operation to finish')
             cfg=manage.load_config(manage.CONFIG)
             manage.add_forward(cfg,data['name'],data['listen_host'],data['listen_port'],data['target_host'],data['target_port'],data.get('routes'),data.get('public') is True,data.get('replace') is True)
-            # Apply before acknowledging the request.  The old implementation
-            # returned success while a background thread was still restarting
-            # the guard, so panel users saw a successful request even when the
-            # forward failed and had no useful error to fix.
-            try:
-                current=manage.load_config(manage.CONFIG)
-                current=manage.add_forward(current,data['name'],data['listen_host'],data['listen_port'],data['target_host'],data['target_port'],data.get('routes'),data.get('public') is True,data.get('replace') is True)
-                manage.save_managed(current)
-                STATE['forward_result']='applied';save()
-                return {'ok':True,'status':'applied','name':data['name']}
-            except Exception as e:
-                details(e)
-                STATE['forward_result']='failed';save()
-                raise
+            # Restarting the guard can briefly call back into the manager, so
+            # never perform it while the request handler holds LOCK. Validate
+            # first, then commit in a worker and expose the result in state.
+            def commit():
+                try:
+                    current=manage.load_config(manage.CONFIG)
+                    current=manage.add_forward(current,data['name'],data['listen_host'],data['listen_port'],data['target_host'],data['target_port'],data.get('routes'),data.get('public') is True,data.get('replace') is True)
+                    manage.save_managed(current)
+                    with LOCK: STATE['forward_result']='applied';save()
+                except Exception as e:
+                    details(e)
+                    with LOCK: STATE['forward_result']='failed';save()
+            threading.Thread(target=commit,daemon=True).start()
+            return {'ok':True,'status':'pending','name':data['name'],'note':'Forward is applying; check the live forward list'}
         raise ValueError('Unknown operation')
 
 
