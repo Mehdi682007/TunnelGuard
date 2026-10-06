@@ -70,7 +70,8 @@ def upgrade(mode):
         subprocess.run(['groupadd','--system','tunnelguard-control'],capture_output=True)
         drop=Path('/etc/systemd/system/tunnelguard-client-guard.service.d')
         drop.mkdir(exist_ok=True)
-        deploy.write_private(drop/'manager.conf','[Service]\nSupplementaryGroups=tunnelguard-control\n')
+        if not (drop/'manager.conf').exists():
+            deploy.write_private(drop/'manager.conf','[Service]\nSupplementaryGroups=tunnelguard-control\n')
     unit=Path('/etc/systemd/system')/f'tunnelguard-manager-{mode}.service'
     runtime='RuntimeDirectory=tunnelguard-manager\nRuntimeDirectoryMode=0750\nGroup=tunnelguard-control\n' if mode=='controller' else ''
     deploy.write_private(unit,f'''[Unit]
