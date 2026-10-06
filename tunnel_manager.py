@@ -257,7 +257,9 @@ def agent():
                     result=dict(id=job['id'],ok=True)
                 except Exception as error:
                     details(error);result=dict(id=job['id'],ok=False)
-                deploy.write_private(completed,result)
+                # This is a replaceable, local retry journal, not a credential bundle.
+                completed.write_text(json.dumps(result),encoding='utf-8')
+                completed.chmod(0o600)
         except Exception as error:
             # Connectivity failures are bounded and do not stop existing tunnel services.
             print(type(error).__name__,flush=True)
