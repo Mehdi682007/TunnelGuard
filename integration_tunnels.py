@@ -38,6 +38,9 @@ def main():
                 run('ip','link','set',interfaces[i],'netns',ns)
                 run('ip','-n',ns,'addr','add',f'198.18.50.{i+1}/24','dev',interfaces[i])
                 run('ip','-n',ns,'link','set',interfaces[i],'up')
+                # sing-box userspace WireGuard requires a default interface even
+                # though this fixture keeps all packets inside the veth pair.
+                run('ip','-n',ns,'route','add','default','dev',interfaces[i])
                 run('ip','-n',ns,'link','set','lo','up')
             (temp/'payload').write_text('tunnelguard-real-link-payload')
             fixture=subprocess.Popen(['ip','netns','exec',namespaces[1],sys.executable,'-m','http.server','28880','--bind','127.0.0.1','--directory',str(temp)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
