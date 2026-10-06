@@ -74,6 +74,7 @@ jobs:
           cleanup() {
             sudo journalctl -u tunnelguard-server-server -u tunnelguard-client-shadowsocks -u tunnelguard-client-trojan -u tunnelguard-client-hysteria2 -u tunnelguard-client-guard --no-pager -n 80 || true
             sudo systemctl disable --now tunnelguard-server-server tunnelguard-client-shadowsocks tunnelguard-client-trojan tunnelguard-client-hysteria2 tunnelguard-client-guard || true
+            sudo systemctl disable --now tunnelguard-reverse-ssh || true
             if [ -n "${fixture_pid:-}" ]; then kill "$fixture_pid" || true; fi
           }
           trap cleanup EXIT
@@ -88,3 +89,10 @@ jobs:
             result=$(curl -q --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 1 --max-time 5 --noproxy '' --proxy "socks5h://127.0.0.1:$port" http://127.0.0.1:28880/payload)
             test "$result" = 'systemd-transport-ok'
           done
+          # Fresh restricted reverse SSH installation in the disposable runner.
+          sudo systemctl start ssh
+          sudo /usr/bin/python3 deploy_reverse.py prepare --receiver 127.0.0.1 --sender 127.0.0.1 --output "$RUNNER_TEMP/reverse-offer"
+          sudo /usr/bin/python3 deploy_reverse.py accept --bundle "$RUNNER_TEMP/reverse-offer/offer.json" --output "$RUNNER_TEMP/reverse-accept" --attach --apply
+          sudo /usr/bin/python3 deploy_reverse.py connect --bundle "$RUNNER_TEMP/reverse-accept/acceptance.json" --key "$RUNNER_TEMP/reverse-offer/key" --output "$RUNNER_TEMP/reverse-start" --apply
+          result=$(curl -q --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 1 --max-time 5 --noproxy '' --proxy socks5h://127.0.0.1:11005 http://127.0.0.1:28880/payload)
+          test "$result" = 'systemd-transport-ok'

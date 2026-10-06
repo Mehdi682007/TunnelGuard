@@ -33,3 +33,9 @@ sudo python3 maintenance.py uninstall --target wireguard-client
 سمت خارج target برابر `wireguard-server` است. کلاینت را پیش از حذف نگهبان پایه حذف کنید. snapshotها کلید خصوصی دارند؛ نگهداری آن‌ها باید خصوصی باشد. WireGuard گواهی TLS با انقضا ندارد؛ گردش کلید هماهنگ خودکارِ ابزار base برای این target پشتیبانی نمی‌شود.
 
 مرجع: [WireGuard endpoint در sing-box](https://sing-box.sagernet.org/configuration/endpoint/wireguard/).
+
+## شروع اتصال از خارج
+
+اگر جهت مستقیم کار نمی‌کند، می‌توانید هنگام تولید سمت خارج از `--direction reverse --client-address YOUR_IRAN_IP` استفاده کنید. در این حالت خارج handshake را به UDP/18451 ایران آغاز می‌کند؛ این پورت باید در ایران باز باشد. `--client-port` قابل تغییر است. این حالت همچنان WireGuard است و یک مسیر مستقل اضافه برای شمارش مصنوعی مسیرهای سالم محسوب نمی‌شود.
+
+برای تغییر نصب موجود، در فرمان server گزینه‌های بالا و `--replace` را با output جدید بدهید؛ pairing جدید را منتقل کنید و فرمان client را نیز با output جدید و `--replace --apply` اجرا کنید. هر سمت snapshot می‌گیرد. کلیدها عوض می‌شوند و تا تکمیل هر دو سمت مسیر قطع است. پورت SOCKS موجود را هنگام جایگزینی تغییر ندهید. این روش تضمین عبور UDP نیست.

@@ -26,6 +26,10 @@ def validate(b):
     if b.get('schema')!=1 or b.get('kind')!='wireguard' or b.get('core_version')!=deploy.VERSION:
         raise ValueError('Wrong WireGuard bundle')
     ipaddress.IPv4Address(b['address'])
+    if b.get('direction','direct') not in ('direct','reverse'): raise ValueError('Invalid direction')
+    if b.get('direction')=='reverse':
+        ipaddress.IPv4Address(b['client_address'])
+        if type(b['client_port']) is not int or not 1024<=b['client_port']<=65535: raise ValueError('Invalid client UDP port')
     for k in ('port','socks_port','bridge_port'):
         if type(b[k]) is not int or not 1024<=b[k]<=65535 or b[k] in (1088,8787): raise ValueError('Invalid port')
     for k in ('client_private','client_public','server_public'):
@@ -39,22 +43,43 @@ def configs(b, server_private=None):
     client=dict(log={'level':'warn'},inbounds=[dict(type='socks',listen='127.0.0.1',listen_port=b['socks_port'])],
         endpoints=[dict(type='wireguard',tag='wg',system=False,mtu=1280,address=['10.77.0.2/30'],private_key=b['client_private'],peers=[dict(address=b['address'],port=b['port'],public_key=b['server_public'],allowed_ips=['0.0.0.0/0'],persistent_keepalive_interval=20)])],
         outbounds=[dict(type='socks',tag='exit',server='10.77.0.1',server_port=b['bridge_port'],version='5',detour='wg')],route={'final':'exit'})
+    if b.get('direction')=='reverse':
+        server['endpoints'][0]['peers'][0].update(address=b['client_address'],port=b['client_port'],persistent_keepalive_interval=20)
+        client['endpoints'][0]['listen_port']=b['client_port']
+        peer=client['endpoints'][0]['peers'][0]
+        peer.pop('address');peer.pop('port');peer.pop('persistent_keepalive_interval')
     return server,client
 
 
-def apply(folder, role, b, archive=None):
+def apply(folder, role, b, archive=None, replace=False):
     target='wireguard-'+role
     prefix=m.TARGETS[target][0]
     unit=m.UNITS/f'tunnelguard-{target}-core.service'
-    if prefix.exists() or unit.exists(): raise ValueError('Existing installation; use maintenance')
+    existing=prefix.exists() or unit.exists()
+    if existing and (not replace or not (prefix/'core.json').is_file() or not unit.is_file()):
+        raise ValueError('Existing installation; explicit --replace requires a managed pair')
     cfg=json.loads((folder/'core.json').read_text())
-    with socket.socket(socket.AF_INET,socket.SOCK_DGRAM if role=='server' else socket.SOCK_STREAM) as probe:
-        probe.bind(('0.0.0.0' if role=='server' else '127.0.0.1', b['port'] if role=='server' else b['socks_port']))
-    if role=='server':
+    if not existing:
+        with socket.socket(socket.AF_INET,socket.SOCK_DGRAM if role=='server' else socket.SOCK_STREAM) as probe:
+            probe.bind(('0.0.0.0' if role=='server' else '127.0.0.1', b['port'] if role=='server' else b['socks_port']))
+    if role=='server' and not existing:
         with socket.socket() as probe: probe.bind(('127.0.0.1', b['bridge_port']))
+    if role=='client' and b.get('direction')=='reverse':
+        old=json.loads((prefix/'core.json').read_text()) if existing else {}
+        if not existing or old['endpoints'][0].get('listen_port')!=b['client_port']:
+            with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as probe: probe.bind(('0.0.0.0',b['client_port']))
     guard=None
     if role=='client':
-        guard=manage.attach(manage.load_config(manage.CONFIG),[dict(name='wireguard',proxy=f'socks5h://127.0.0.1:{b["socks_port"]}',priority=90,layer='WireGuard-UDP')],'WireGuard')
+        current=manage.load_config(manage.CONFIG)
+        expected=f'socks5h://127.0.0.1:{b["socks_port"]}'
+        if existing:
+            if not any(r['name']=='wireguard' and r['proxy']==expected for r in current['routes']):
+                raise ValueError('Replacement requires unchanged SOCKS route port')
+        else:
+            guard=manage.attach(current,[dict(name='wireguard',proxy=expected,priority=90,layer='WireGuard-UDP')],'WireGuard')
+    if existing:
+        print('Replacement snapshot:',m.transaction(target,{'core.json':(folder/'core.json').read_bytes()}))
+        return
     binary=deploy.install_core(folder,archive)
     m.run(str(binary),'check','-c',str(folder/'core.json'))
     prefix.parent.mkdir(mode=0o755,exist_ok=True)
@@ -84,6 +109,10 @@ def main():
     p.add_argument('--port',type=int,default=18450)
     p.add_argument('--socks-port',type=int,default=11010)
     p.add_argument('--bridge-port',type=int,default=11011)
+    p.add_argument('--direction',choices=['direct','reverse'],default='direct')
+    p.add_argument('--client-address',help='Required for reverse mode; Iran public IPv4')
+    p.add_argument('--client-port',type=int,default=18451)
+    p.add_argument('--replace',action='store_true',help='Snapshot and replace an existing WireGuard side; pair both sides again')
     p.add_argument('--bundle',type=Path)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--core-archive',type=Path)
@@ -95,7 +124,7 @@ def main():
             if not a.address: p.error('--address required')
             server_private,server_public=keypair()
             client_private,client_public=keypair()
-            b=validate(dict(schema=1,kind='wireguard',core_version=deploy.VERSION,address=a.address,port=a.port,socks_port=a.socks_port,bridge_port=a.bridge_port,server_public=server_public,client_private=client_private,client_public=client_public))
+            b=validate(dict(schema=1,kind='wireguard',core_version=deploy.VERSION,address=a.address,port=a.port,socks_port=a.socks_port,bridge_port=a.bridge_port,server_public=server_public,client_private=client_private,client_public=client_public,direction=a.direction,client_address=a.client_address,client_port=a.client_port))
             server,client=configs(b,server_private)
         else:
             if not a.bundle: p.error('--bundle required')
@@ -106,7 +135,7 @@ def main():
         deploy.write_private(a.output/'core.json',server if a.role=='server' else client)
         if a.role=='server': deploy.write_private(a.output/'pairing.json',b)
         if a.apply:
-            with m.locked(): apply(a.output,a.role,b,a.core_archive)
+            with m.locked(): apply(a.output,a.role,b,a.core_archive,a.replace)
         print('WireGuard configuration ready. Pairing contains a private client key; transfer only through trusted SSH.')
         print('Server requires configured UDP port. Firewall and OS routing unchanged. Validate end-to-end; UDP may be blocked.')
         return 0

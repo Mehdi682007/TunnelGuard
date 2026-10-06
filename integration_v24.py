@@ -6,11 +6,13 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import shutil
 import threading
 import time
 
 import deploy
 import deploy_wireguard as wg
+import maintenance as maintenance
 
 
 def main():
@@ -58,6 +60,36 @@ def main():
             for name,cfg in [('wg-server',ws),('wg-client',wc)]:
                 path=root/(name+'.json');deploy.write_private(path,cfg);start(path)
             fetch(21010);print('wireguard payload PASS',flush=True)
+            for child in processes[-2:]:
+                child.terminate();child.wait(timeout=5)
+            b.update(direction='reverse',client_address='127.0.0.1',client_port=28451)
+            ws,wc=wg.configs(b,private)
+            for name,cfg in [('wg-reverse-server',ws),('wg-reverse-client',wc)]:
+                path=root/(name+'.json');deploy.write_private(path,cfg);start(path)
+            fetch(21010);print('wireguard reverse initiation payload PASS',flush=True)
+            # Exercise actual seven-protocol certificate/credential regeneration.
+            shutil.copy2(binary, client/'sing-box')
+            old_state,old_targets=maintenance.STATE,maintenance.TARGETS.copy()
+            try:
+                maintenance.TARGETS.update(server=(server,['server']),client=(client,[*deploy.ALL_KINDS,'guard']))
+                maintenance.STATE=root/'server-state';maintenance.STATE.mkdir()
+                identity=maintenance.prepare_rotation('server','127.0.0.1')
+                server_plan=json.loads((maintenance.rotation_folder(identity)/'plan.json').read_text())
+                bundle=json.loads((maintenance.rotation_folder(identity)/'pairing.json').read_text())
+                maintenance.STATE=root/'client-state';maintenance.STATE.mkdir()
+                maintenance.stage_client('client',bundle)
+                client_plan=json.loads((maintenance.rotation_folder(identity)/'plan.json').read_text())
+            finally:
+                maintenance.STATE=old_state;maintenance.TARGETS.clear();maintenance.TARGETS.update(old_targets)
+            for child in processes:
+                if child.poll() is None: child.terminate();child.wait(timeout=5)
+            for folder,plan in [(server,server_plan),(client,client_plan)]:
+                for name,value in plan['changes'].items(): (folder/name).write_text(value)
+            start(server/'server.json')
+            for k in deploy.ALL_KINDS:
+                start(client/f'{k}.json')
+                fetch(json.loads((client/f'{k}.json').read_text())['inbounds'][0]['listen_port'])
+            print('seven-protocol paired rotation payload PASS',flush=True)
     except BaseException:
         for log in logs[-2:]:
             log.seek(0)

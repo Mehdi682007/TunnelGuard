@@ -31,3 +31,9 @@ sudo python3 maintenance.py uninstall --target wireguard-client
 Exit target: `wireguard-server`. Remove the attached client before removing the base guard. Snapshots contain private keys. WireGuard has no expiring TLS certificate; automatic base paired key rotation does not apply to this target.
 
 Reference: [sing-box WireGuard endpoint](https://sing-box.sagernet.org/configuration/endpoint/wireguard/).
+
+## Reverse initiation
+
+Generate the exit side with `--direction reverse --client-address YOUR_IRAN_IP` to have exit initiate the WireGuard handshake to Iran UDP/18451 (override with `--client-port`). Allow this UDP port on Iran. This is a direction option for the same WireGuard route, not another independent healthy path.
+
+For an existing installation, use these server options plus `--replace` and a fresh output directory, transfer the new pairing, then run client with another fresh output and `--replace --apply`. Both sides create snapshots. Keys change; the route is unavailable until both sides are paired again. Keep the existing SOCKS port. Reverse initiation still cannot guarantee UDP reachability.
