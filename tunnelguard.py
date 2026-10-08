@@ -966,10 +966,11 @@ async def serve(cfg, args):
     finally:
         for server in servers:
             server.close()
-            await server.wait_closed()
         for task in tasks + list(guard.tasks):
             task.cancel()
         await asyncio.gather(*tasks, *list(guard.tasks), return_exceptions=True)
+        for server in servers:
+            await server.wait_closed()
         if args.output:
             save_report(guard, args.output)
 

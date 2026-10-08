@@ -14,7 +14,7 @@ class ForwardJobTests(unittest.TestCase):
         real_thread=threading.Thread
         def thread(**kwargs):
             t=real_thread(**kwargs);threads.append(t);return t
-        with patch.object(manager,'STATE',{'links':{}}), patch.object(manager,'save'), patch.object(manager.manage,'load_config',return_value={}), patch.object(manager.manage,'add_forward',return_value={}) as add, patch.object(manager.manage,'save_managed',side_effect=commit), patch.object(manager.threading,'Thread',side_effect=thread):
+        with patch.object(manager,'STATE',{'links':{}}), patch.object(manager,'save'), patch.object(manager.manage,'load_config',return_value={}), patch.object(manager.manage,'add_forward',return_value={'tcp_forwards':[{'name':'xui-4748'}]}) as add, patch.object(manager.manage,'save_managed',side_effect=commit), patch.object(manager.threading,'Thread',side_effect=thread):
             result=manager.dispatch({'op':'forward','data':data})
             try:
                 self.assertEqual(result['status'],'pending')

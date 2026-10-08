@@ -49,6 +49,9 @@ def attach(p):
     merged=manage.attach(cfg,[route],'Tunnels')
     # The profile contains all managed links, not only the most recent one.
     merged['profiles']['Tunnels']=[r['name'] for r in merged['routes'] if r['name'] in STATE['links']]
+    for forward in merged.get('tcp_forwards', []):
+        if forward.get('follow_managed') and forward['targets']:
+            forward['targets'][p['name']]=dict(next(iter(forward['targets'].values())))
     manage.save_managed(merged)
 
 
@@ -193,6 +196,9 @@ def dispatch(message):
         if op=='forward':
             if STATE.get('forward_result')=='pending': raise ValueError('A forward operation is already running')
             if any(v['phase'] not in ('ready','failed') for v in STATE['links'].values()): raise ValueError('Wait for the link operation to finish')
+            if data.get('follow_managed') is True:
+                data=dict(data, routes=[name for name,item in STATE['links'].items() if item['phase']=='ready'])
+                if not data['routes']: raise ValueError('No installed managed tunnels')
             cfg=manage.load_config(manage.CONFIG)
             manage.add_forward(cfg,data['name'],data['listen_host'],data['listen_port'],data['target_host'],data['target_port'],data.get('routes'),data.get('public') is True,data.get('replace') is True)
             # Restarting the guard can briefly call back into the manager, so
@@ -202,6 +208,9 @@ def dispatch(message):
                 try:
                     current=manage.load_config(manage.CONFIG)
                     current=manage.add_forward(current,data['name'],data['listen_host'],data['listen_port'],data['target_host'],data['target_port'],data.get('routes'),data.get('public') is True,data.get('replace') is True)
+                    for forward in current['tcp_forwards']:
+                        if forward['name']==data['name']:
+                            forward['follow_managed']=data.get('follow_managed') is True
                     manage.save_managed(current)
                     with LOCK: STATE['forward_result']='applied';save()
                 except Exception as e:

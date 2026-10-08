@@ -65,6 +65,18 @@ class NetworkTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(OSError): await tg.dial(self.g,forward=spec)
             upstream.assert_not_called()
 
+    async def test_forward_switches_immediately_with_preferred_route(self):
+        import time
+        from unittest.mock import AsyncMock
+        for route in self.g.routes:
+            route.state='UP';route.last=time.monotonic()
+        spec={'targets':{r.name:dict(host='exit-only.invalid',port=4748,via='proxy') for r in self.g.routes}}
+        with patch.object(tg,'upstream',new_callable=AsyncMock) as upstream:
+            for route in reversed(self.g.routes):
+                self.g.control(dict(action='prefer',value=route.name))
+                await tg.dial(self.g,forward=spec)
+                self.assertEqual(upstream.call_args.args,(route.proxy,'exit-only.invalid',4748))
+
     async def test_dashboard_auth_protects_html_status_and_controls(self):
         auth='Basic '+base64.b64encode(b'admin:test-password').decode()
         self.g.cfg['dashboard_auth_sha256']=hashlib.sha256(auth.encode()).hexdigest()
