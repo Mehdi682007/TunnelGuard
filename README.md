@@ -168,3 +168,18 @@ See [TESTING.md](TESTING.md) for the validation record. Local tests cover real t
 When filing a problem, include OS, Python/curl versions, engine name/version, command and sanitized error. Do not publish passwords, UUIDs, tokens, keys, real proxy URLs or private configuration files. Dashboard exports intentionally omit proxy addresses and credentials; route names remain visible.
 
 External projects retain their own licenses. This repository does not include their source code or binaries.
+
+## Interactive server installation and panel login
+
+```bash
+sudo apt update && sudo apt install -y git python3
+git clone https://github.com/Mehdi682007/TunnelGuard.git
+cd TunnelGuard
+sudo python3 setup.py
+```
+
+Menu: **1 Install**, **2 Upgrade**, **3 Change panel credentials**, **4 Status**, **5 Install prerequisites**, **0 Exit**. Choose prerequisites first on a fresh host. Install asks for **1 Iran / 2 Outside**. Iran creates the HTTPS panel and a private pairing file; transfer that file to outside and select outside installation there. Update the checkout (`git pull --ff-only`) before selecting Upgrade. Existing pairing is preserved.
+
+Open `https://IRAN_IP:8787/login`. Initial credentials remain in `/opt/tunnelguard-manager/panel/login.txt`. Use the panel account form to change username/password (current credentials required), or menu option 3 on Iran to recover access as root. Restart/credential changes expire browser sessions. The initial login file is not updated when credentials change; retain your new password.
+
+Each TCP forward has a name, public/local listener, destination, and routing mode. Add as many distinct listener ports as needed. For example, select **fixed** and only WireGuard for 4748, then add a second named forward for 7643 selecting only Paqet. Both destination inbounds must already exist in 3x-ui on outside. Fixed routes are independent of global selection/profile; unhealthy fixed routes fail closed. Alternatively choose **follow global selection** for automatic managed-tunnel switching. Existing forwards can be edited/deleted from their cards. Applying configuration restarts the guard and briefly interrupts traffic; ordinary tunnel selection does not restart it.

@@ -11,6 +11,8 @@ import base64
 import contextlib
 import getpass
 import hashlib
+import hmac
+from http.cookies import SimpleCookie
 import ipaddress
 import json
 import math
@@ -412,15 +414,15 @@ class Guard:
                 with contextlib.suppress(FileNotFoundError):
                     os.unlink(temporary)
 
-    def eligible(self, now=None):
+    def eligible(self, now=None, ignore_profile=False):
         now = time.monotonic() if now is None else now
         members = self.cfg["profiles"][self.profile]
-        return [r for r in self.routes if r.enabled and r.name in members and r.state == "UP"
+        return [r for r in self.routes if r.enabled and (ignore_profile or r.name in members) and r.state == "UP"
                 and now - r.last <= self.cfg["stale_after"] and now >= r.quarantine_until
                 and (r.name not in self.supervisors or self.supervisors[r.name].state == "RUNNING")]
 
-    def ordered(self, now=None):
-        candidates = self.eligible(now)
+    def ordered(self, now=None, ignore_profile=False):
+        candidates = self.eligible(now, ignore_profile=ignore_profile)
         if self.policy == "quality":
             candidates.sort(key=lambda r: (r.score(), r.priority))
         else:
@@ -522,7 +524,7 @@ class Guard:
                     gateway=f"127.0.0.1:{self.cfg['listen_port']}",
                     profile=self.profile, profiles=self.cfg["profiles"], preferred=self.preferred,
                     policy=self.policy, engines={k: v.public() for k, v in self.supervisors.items()},
-                    forwards=[dict(name=f["name"], listen_host=f.get("listen_host", "127.0.0.1"), listen_port=f["listen_port"]) for f in self.cfg["tcp_forwards"]],
+                    forwards=[dict(name=f["name"], listen_host=f.get("listen_host", "127.0.0.1"), listen_port=f["listen_port"], targets=f["targets"], follow_managed=f.get("follow_managed",False)) for f in self.cfg["tcp_forwards"]],
                     routes=[r.public() for r in self.routes], events=list(self.events), history=list(self.history))
 
     async def tick(self):
@@ -668,14 +670,15 @@ async def relay(ar, aw, br, bw, guard):
 
 async def dial(guard, host=None, port=None, forward=None):
     active = guard.choose()
-    candidates = guard.ordered()
+    independent = bool(forward and not forward.get("follow_managed", False))
+    candidates = guard.ordered(ignore_profile=independent)
     if active in candidates:
         candidates.remove(active)
         candidates.insert(0, active)
     if forward:
         candidates = [r for r in candidates if r.name in forward["targets"]]
     for route in candidates[:guard.cfg["connect_attempts"]]:
-        if route not in guard.eligible():
+        if route not in guard.eligible(ignore_profile=independent):
             continue
         try:
             async with asyncio.timeout(guard.cfg["timeout"]):
@@ -687,7 +690,7 @@ async def dial(guard, host=None, port=None, forward=None):
                         result = await asyncio.open_connection(target["host"], target["port"], happy_eyeballs_delay=0.25)
                 else:
                     result = await upstream(route.proxy, host, port)
-            if route not in guard.eligible():
+            if route not in guard.eligible(ignore_profile=independent):
                 await close(result[1])
                 continue
             return result
@@ -785,6 +788,30 @@ async def manager_request(data):
         if remote: await close(remote)
 
 
+def session_cookie(guard, token=None):
+    key=(guard.control_token+guard.cfg.get('dashboard_auth_sha256','')).encode()
+    if token is None:
+        payload=str(int(time.time())+28800)+'.'+secrets.token_hex(16)
+        result=payload+'.'+hmac.new(key,payload.encode(),'sha256').hexdigest()
+        sessions=getattr(guard,'web_sessions',{})
+        sessions={k:v for k,v in sessions.items() if v>time.time()}
+        if len(sessions)>=100: sessions.pop(next(iter(sessions)))
+        sessions[result]=int(time.time())+28800
+        guard.web_sessions=sessions
+        return result
+    try:
+        if token not in getattr(guard,'web_sessions',{}): return False
+        expiry,nonce,signature=token.split('.')
+        if not int(time.time()) < int(expiry) <= int(time.time())+28800: return False
+        payload=expiry+'.'+nonce
+        return secrets.compare_digest(signature,hmac.new(key,payload.encode(),'sha256').hexdigest())
+    except (ValueError,TypeError): return False
+
+
+def login_html():
+    return """<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard — ورود / Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>نام کاربری / Username<input name="username" autocomplete="username" required maxlength="64"></label><label>رمز عبور / Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>ورود / Sign in</button><p id="message" role="status"></p></form><script>document.getElementById('login').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace('/');else document.getElementById('message').textContent=r.status===429?'کمی صبر کنید / Try again later':'نام کاربری یا رمز نادرست / Invalid credentials';}catch{document.getElementById('message').textContent='ارتباط برقرار نشد / Connection failed';}};</script></html>""".encode()
+
+
 async def dashboard(guard, reader, writer):
     task = asyncio.current_task()
     guard.tasks.add(task)
@@ -806,7 +833,44 @@ async def dashboard(guard, reader, writer):
             address = guard.cfg['dashboard_address']
             expected.add(f'[{address}]:{guard.cfg["dashboard_port"]}' if ':' in address else f'{address}:{guard.cfg["dashboard_port"]}')
         auth = guard.cfg.get('dashboard_auth_sha256')
-        if method == 'POST' and path == '/api/peer' and host in expected and auth and writer.get_extra_info('ssl_object'):
+        extra_headers=''
+        cookies=SimpleCookie()
+        try: cookies.load(headers.get('cookie',''))
+        except Exception: pass
+        cookie=cookies.get('tg_session')
+        authenticated=not auth or secrets.compare_digest(hashlib.sha256(headers.get('authorization','').encode()).hexdigest(),auth) or bool(cookie and session_cookie(guard,cookie.value))
+        scheme='https' if writer.get_extra_info('ssl_object') else 'http'
+        if host not in expected:
+            code,mime,body='403 Forbidden','text/plain',b'Forbidden'
+        elif method=='GET' and path=='/login':
+            code,mime,body='200 OK','text/html; charset=utf-8',login_html()
+        elif method=='POST' and path=='/api/login':
+            length=headers.get('content-length','')
+            if not auth or scheme!='https' or headers.get('origin')!=f'{scheme}://{host}' or headers.get('content-type')!='application/json' or 'transfer-encoding' in headers or not length.isdigit() or not 1<=int(length)<=2048:
+                code,mime,body='403 Forbidden','application/json',b'{}'
+            else:
+                now=time.monotonic()
+                attempts=getattr(guard,'login_attempts',deque(maxlen=20))
+                guard.login_attempts=attempts
+                while attempts and attempts[0]<now-60: attempts.popleft()
+                if len(attempts)>=20:
+                    code,mime,body='429 Too Many Requests','application/json',b'{}'
+                else:
+                    attempts.append(now)
+                    data=json.loads(await asyncio.wait_for(reader.readexactly(int(length)),3))
+                    username,password=data.get('username'),data.get('password')
+                    valid=isinstance(username,str) and isinstance(password,str) and ':' not in username
+                    candidate='Basic '+base64.b64encode((username+':'+password).encode()).decode() if valid else ''
+                    if valid and secrets.compare_digest(hashlib.sha256(candidate.encode()).hexdigest(),auth):
+                        extra_headers='Set-Cookie: tg_session='+session_cookie(guard)+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800\r\n'
+                        code,mime,body='200 OK','application/json',b'{"ok":true}'
+                    else: code,mime,body='401 Unauthorized','application/json',b'{"error":"Invalid credentials"}'
+        elif method=='POST' and path=='/api/logout' and headers.get('origin')==f'{scheme}://{host}':
+            if cookie: getattr(guard,'web_sessions',{}).pop(cookie.value,None)
+            extra_headers='Set-Cookie: tg_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0\r\n'
+            code,mime,body='200 OK','application/json',b'{}'
+
+        elif method == 'POST' and path == '/api/peer' and host in expected and auth and writer.get_extra_info('ssl_object'):
             length = headers.get('content-length', '')
             if not length.isdigit() or not 1 <= int(length) <= 4096 or 'transfer-encoding' in headers:
                 code, mime, body = '400 Bad Request', 'application/json', b'{"error":"Invalid peer request"}'
@@ -815,8 +879,11 @@ async def dashboard(guard, reader, writer):
                 result = await manager_request(dict(op='peer',data=payload,authorization=headers.get('authorization','')))
                 code = '401 Unauthorized' if result.get('status')==401 else '400 Bad Request' if result.get('error') else '200 OK'
                 mime, body = 'application/json', json.dumps(result).encode()
-        elif auth and not secrets.compare_digest(hashlib.sha256(headers.get('authorization', '').encode()).hexdigest(), auth):
-            code, mime, body = '401 Unauthorized', 'text/plain', b'Authentication required'
+        elif not authenticated:
+            if method=='GET' and path=='/':
+                code,mime,body='303 See Other','text/plain',b''
+                extra_headers='Location: /login\r\n'
+            else: code,mime,body='401 Unauthorized','application/json',b'{"error":"Authentication required"}'
         elif host not in expected:
             code, mime, body = "403 Forbidden", "text/plain", b"Forbidden"
         elif method == 'GET' and path == '/api/tunnels':
@@ -836,7 +903,7 @@ async def dashboard(guard, reader, writer):
                     payload = await asyncio.wait_for(reader.readexactly(int(length)), 3)
                     data = json.loads(payload)
                     if path == '/api/tunnels':
-                        if data.get('op') not in ('create','delete','test','forward') or guard.demo:
+                        if data.get('op') not in ('create','delete','test','forward','forward-remove','credentials') or guard.demo:
                             raise ValueError('Invalid manager operation')
                         result = await manager_request(data)
                         code, mime, body = ('400 Bad Request' if result.get('error') else '200 OK'), 'application/json', json.dumps(result).encode()
@@ -851,7 +918,7 @@ async def dashboard(guard, reader, writer):
             code, mime, body = "200 OK", "text/html; charset=utf-8", dashboard_html(token=guard.control_token).encode()
         else:
             code, mime, body = "404 Not Found", "text/plain", b"Not found"
-        challenge = 'WWW-Authenticate: Basic realm="TunnelGuard", charset="UTF-8"\r\n' if code.startswith('401') else ''
+        challenge = extra_headers
         writer.write((f"HTTP/1.1 {code}\r\n{challenge}Content-Type: {mime}\r\nContent-Length: {len(body)}\r\n"
                       "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n"
                       "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'\r\n"

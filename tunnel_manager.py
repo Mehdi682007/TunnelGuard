@@ -181,6 +181,8 @@ def dispatch(message):
         if op=='peer': return peer(message['data'],message.get('authorization',''))
         if op=='status': return status()
         data=message.get('data',{})
+        if op in ('create','delete','forward','forward-remove','credentials') and STATE.get('forward_result')=='pending':
+            raise ValueError('Wait for the configuration operation to finish')
         if op=='create': return create(data)
         if op=='delete': return delete(data.get('name'))
         if op=='test':
@@ -193,6 +195,35 @@ def dispatch(message):
                 except Exception as e: details(e)
             threading.Thread(target=check,daemon=True).start()
             return {'ok':True}
+        if op in ('credentials','forward-remove'):
+            if STATE.get('forward_result')=='pending': raise ValueError('An operation is already running')
+            cfg=manage.load_config(manage.CONFIG)
+            if op=='credentials':
+                import re
+                current_user=data.get('current_username','');current_password=data.get('current_password','')
+                candidate='Basic '+base64.b64encode((current_user+':'+current_password).encode()).decode()
+                if not secrets.compare_digest(hashlib.sha256(candidate.encode()).hexdigest(),cfg.get('dashboard_auth_sha256','')):
+                    raise ValueError('Current credentials are incorrect')
+                username=data.get('username','');password=data.get('password','')
+                if not re.fullmatch(r'[A-Za-z0-9_.-]{1,64}',username) or not 12<=len(password)<=256:
+                    raise ValueError('Username must be 1-64 safe characters; password must be 12-256 characters')
+                new_auth='Basic '+base64.b64encode((username+':'+password).encode()).decode()
+                cfg['dashboard_auth_sha256']=hashlib.sha256(new_auth.encode()).hexdigest()
+            else:
+                name=data.get('name')
+                if not any(f['name']==name for f in cfg['tcp_forwards']): raise ValueError('Forward not found')
+                cfg['tcp_forwards']=[f for f in cfg['tcp_forwards'] if f['name']!=name]
+            manage.checked(cfg)
+            def update_config():
+                try:
+                    manage.save_managed(cfg)
+                    with LOCK: STATE['forward_result']='applied';save()
+                except Exception as error:
+                    details(error)
+                    with LOCK: STATE['forward_result']='failed';save()
+            STATE['forward_result']='pending';save()
+            threading.Thread(target=update_config,daemon=True).start()
+            return {'ok':True,'status':'pending'}
         if op=='forward':
             if STATE.get('forward_result')=='pending': raise ValueError('A forward operation is already running')
             if any(v['phase'] not in ('ready','failed') for v in STATE['links'].values()): raise ValueError('Wait for the link operation to finish')

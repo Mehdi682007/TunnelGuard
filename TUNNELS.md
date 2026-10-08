@@ -41,7 +41,7 @@ Select Spoof and enter both permitted source IPv4 addresses (Iran egress and exi
 
 For an existing exit inbound on 4748, choose Iran port 4748, target `127.0.0.1:4748`, select tunnel routes, enable public listening and apply. Verify the forward appears after the guard restart. This forwards **TCP**, not application UDP. Select the user inbound, not the 3x-ui administration port. Keep the user's UUID, transport and TLS settings; change the client connection address to Iran's IP. Existing sessions do not migrate after failure.
 
-Removing the only route used by a forward is rejected. Use [manage.py](FORWARDING.md) to remove/remap an existing forward before deleting that link. Panel forwarding currently creates a new forward; editing/removal uses the CLI.
+Removing the only route used by a forward is rejected. Use [manage.py](FORWARDING.md) to remove/remap an existing forward before deleting that link. The panel supports multiple named TCP forwards with edit/delete controls and fixed per-port or global-follow routing. See the interactive menu and login instructions in README.md.
 
 ## Network and lifecycle
 

@@ -9,7 +9,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parent
-FILES = ["tunnelguard.py", "engines.py", "dashboard.html", "config.example.json",
+FILES = ["setup.py", "tunnelguard.py", "engines.py", "dashboard.html", "config.example.json",
          "install_manager.py", "tunnel_manager.py", "tunnel_methods.py", "tunnel_assets.py", "tunnel_node.py", "tunnel_runtime.py", "TUNNELS.md", "TUNNELS.fa.md",
          "config.multilayer.example.json", "config.managed.example.json",
          "README.md", "README.fa.md", "MULTILAYER.md", "MULTILAYER.fa.md",

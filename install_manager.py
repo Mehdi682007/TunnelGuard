@@ -65,7 +65,9 @@ def install(mode,bundle=None,iran=None,exit=None,output=None):
 def upgrade(mode):
     (ROOT/'app').mkdir(mode=0o755,exist_ok=True)
     for p in SOURCE.glob('*.py'):
-        shutil.copy2(p,ROOT/'app'/p.name)
+        if p.resolve()!=(ROOT/'app'/p.name).resolve(): shutil.copy2(p,ROOT/'app'/p.name)
+    if (SOURCE/'dashboard.html').resolve()!=(ROOT/'app'/'dashboard.html').resolve():
+        shutil.copy2(SOURCE/'dashboard.html',ROOT/'app'/'dashboard.html')
     if mode=='controller':
         subprocess.run(['groupadd','--system','tunnelguard-control'],capture_output=True)
         drop=Path('/etc/systemd/system/tunnelguard-client-guard.service.d')

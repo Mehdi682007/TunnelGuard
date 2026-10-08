@@ -77,6 +77,20 @@ class NetworkTests(unittest.IsolatedAsyncioTestCase):
                 await tg.dial(self.g,forward=spec)
                 self.assertEqual(upstream.call_args.args,(route.proxy,'exit-only.invalid',4748))
 
+    async def test_fixed_port_ignores_global_profile_and_preference(self):
+        import time
+        from unittest.mock import AsyncMock
+        a,b=self.g.routes
+        for route in self.g.routes:route.state='UP';route.last=time.monotonic()
+        self.g.cfg['profiles']['OnlyB']=[b.name]
+        self.g.control(dict(action='profile',value='OnlyB'))
+        spec={'follow_managed':False,'targets':{a.name:dict(host='exit-only.invalid',port=4748,via='proxy')}}
+        with patch.object(tg,'upstream',new_callable=AsyncMock) as upstream:
+            await tg.dial(self.g,forward=spec)
+            self.assertEqual(upstream.call_args.args[0],a.proxy)
+            a.state='DOWN'
+            with self.assertRaises(OSError):await tg.dial(self.g,forward=spec)
+
     async def test_dashboard_auth_protects_html_status_and_controls(self):
         auth='Basic '+base64.b64encode(b'admin:test-password').decode()
         self.g.cfg['dashboard_auth_sha256']=hashlib.sha256(auth.encode()).hexdigest()
@@ -86,7 +100,7 @@ class NetworkTests(unittest.IsolatedAsyncioTestCase):
             r,w=await asyncio.open_connection('127.0.0.1',port)
             w.write(f'GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n'.encode());await w.drain()
             response=await r.read();await tg.close(w)
-            self.assertIn(b'401 Unauthorized',response)
+            self.assertIn(b'303 See Other' if path=='/' else b'401 Unauthorized',response)
             self.assertNotIn(self.g.control_token.encode(),response)
         r,w=await asyncio.open_connection('127.0.0.1',port)
         w.write(f'GET /api/status HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: {auth}\r\n\r\n'.encode());await w.drain()
