@@ -111,7 +111,7 @@ def launch(name,op,next_phase):
 
 def status():
     return dict(available=True,peer_online=time.time()-STATE.get('heartbeat',0)<30,
-                methods=methods.catalog(),links=[dict(**methods.public_plan(v['plan']),phase=v['phase'],last_test=v.get('last_test'),tested_at=v.get('tested_at'),error=v.get('error','')) for v in STATE['links'].values()])
+                forward_result=STATE.get('forward_result'),methods=methods.catalog(),links=[dict(**methods.public_plan(v['plan']),phase=v['phase'],last_test=v.get('last_test'),tested_at=v.get('tested_at'),error=v.get('error','')) for v in STATE['links'].values()])
 
 
 def create(data):
@@ -191,6 +191,7 @@ def dispatch(message):
             threading.Thread(target=check,daemon=True).start()
             return {'ok':True}
         if op=='forward':
+            if STATE.get('forward_result')=='pending': raise ValueError('A forward operation is already running')
             if any(v['phase'] not in ('ready','failed') for v in STATE['links'].values()): raise ValueError('Wait for the link operation to finish')
             cfg=manage.load_config(manage.CONFIG)
             manage.add_forward(cfg,data['name'],data['listen_host'],data['listen_port'],data['target_host'],data['target_port'],data.get('routes'),data.get('public') is True,data.get('replace') is True)
@@ -206,6 +207,7 @@ def dispatch(message):
                 except Exception as e:
                     details(e)
                     with LOCK: STATE['forward_result']='failed';save()
+            STATE['forward_result']='pending';save()
             threading.Thread(target=commit,daemon=True).start()
             return {'ok':True,'status':'pending','name':data['name'],'note':'Forward is applying; check the live forward list'}
         raise ValueError('Unknown operation')
@@ -232,6 +234,8 @@ def serve():
     for item in STATE['links'].values():
         if item['phase'] in ('local-install','local-remove','finish'):
             item.update(phase='failed',error='Interrupted local operation; inspect and remove both sides')
+    if STATE.get('forward_result')=='pending':
+        STATE['forward_result']='failed';save()
     Path(SOCKET).unlink(missing_ok=True)
     with socketserver.ThreadingUnixStreamServer(SOCKET,Handler) as server:
         os.chmod(SOCKET,0o660)
