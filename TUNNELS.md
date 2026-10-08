@@ -4,7 +4,7 @@
 
 Workflow: install a link between Iran and exit, test it, select a healthy route, then forward an existing 3x-ui user inbound port. VMess/VLESS settings stay in 3x-ui; they are not counted as tunnel families.
 
-Eight families: **SSH, Chisel, WireGuard, Paqet, Spoof, IPIP, GRE and VXLAN**. Each offers direct and reverse channel initiation. SSH and Chisel have native reverse forwarding. WireGuard/Paqet/Spoof carry an encrypted Chisel return channel entirely inside the selected carrier, with no direct fallback. IPIP/GRE/VXLAN are symmetric kernel links; direction selects the initiator of their encrypted inner channel. Sixteen modes are not sixteen independent protocols.
+Nine families: **SSH, Chisel, Rathole, WireGuard, Paqet, Spoof, IPIP, GRE and VXLAN**. Each offers direct and reverse channel initiation. SSH and Chisel have native reverse forwarding. WireGuard/Paqet/Spoof carry an encrypted Chisel return channel entirely inside the selected carrier, with no direct fallback. IPIP/GRE/VXLAN are symmetric kernel links; direction selects the initiator of their encrypted inner channel. Eighteen modes are not eighteen independent protocols.
 
 ## Pair the management agents
 
@@ -52,3 +52,11 @@ Paqet adds three peer-IP/port-scoped NOTRACK/RST rules and removes them on stop.
 Failed/partial installs remain visibly failed. Remove both sides, wait for peer cleanup, then retry. Agent restart does not remove established link services. Upgrade the installed controller with `sudo python3 install_manager.py controller --upgrade` and exit with `sudo python3 install_manager.py agent --upgrade` after updating the checkout; guard upgrade may interrupt current forwarded connections. Existing private pairing/configuration is preserved.
 
 Upstream: [Paqet](https://github.com/hanselime/paqet), [Chisel](https://github.com/jpillora/chisel), [Spoof](https://github.com/ParsaKSH/spoof-tunnel). No claim of supporting every tunneling method or a guaranteed number of working links on a filtered address.
+
+## Rathole with Noise
+
+Rathole v0.5.0 is an additional TCP carrier, not a guarantee of better connectivity. Official amd64/arm64 ZIP files are SHA256-pinned. The Noise NK transport pins the generated server public key; a private loopback Chisel channel supplies SOCKS forwarding toward the exit. In direct mode Iran initiates Rathole; in reverse mode outside initiates it. Only the carrier port `base+1` is public. Inner service ports stay on loopback; there is no direct network fallback.
+
+Both directions passed real payload tests in isolated Linux network namespaces on amd64. Run `sudo python3 integration_tunnels.py rathole` for that focused test. Filtering and provider policy can still block either direction. arm64 is pinned but was not field-tested in this session.
+
+Reference: https://github.com/rathole-org/rathole/blob/main/docs/transport.md

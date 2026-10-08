@@ -58,6 +58,10 @@ def commands(p,role,folder):
         peer=p[p['server_role']]
         args=['/usr/bin/ssh','-F','/dev/null','-NT','-i',str(folder/'key'),'-o',f'UserKnownHostsFile={folder}/known_hosts','-o','StrictHostKeyChecking=yes','-o','IdentitiesOnly=yes','-o','BatchMode=yes','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=10','-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-p',str(p['ssh_port']),'-D' if p['direction']=='direct' else '-R',f'127.0.0.1:{p["socks_port"]}',f'{p["interface"]}@{peer}']
         return [args],env
+    if method=='rathole':
+        import tunnel_rathole
+        env['AUTH']='tg:'+p['token']
+        return tunnel_rathole.commands(p,role,folder,ROOT),env
     if method=='paqet': commands.append([binary('paqet'),'run','-c',str(folder/'paqet.yaml')])
     if method=='spoof': commands.append([binary('spoof'),'run','-c',str(folder/'carrier.json')])
     if method in ('spoof','wireguard'): commands.append([binary('sing-box'),'run','-c',str(folder/'core.json')])

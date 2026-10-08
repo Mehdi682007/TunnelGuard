@@ -289,7 +289,7 @@ def apply(folder, role, offline=None):
         if role == "client":
             shutil.copy2(folder/"config.json", prefix/"config.json")
             (prefix/"app").mkdir(mode=0o755)
-            for name in ("tunnelguard.py", "engines.py", "dashboard.html"):
+            for name in ("tunnelguard.py", "engines.py", "dashboard.html", "account.html"):
                 shutil.copy2(ROOT/name, prefix/"app"/name)
                 (prefix/"app"/name).chmod(0o644)
             names.append("guard")

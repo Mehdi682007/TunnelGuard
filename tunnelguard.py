@@ -880,7 +880,7 @@ async def dashboard(guard, reader, writer):
                 code = '401 Unauthorized' if result.get('status')==401 else '400 Bad Request' if result.get('error') else '200 OK'
                 mime, body = 'application/json', json.dumps(result).encode()
         elif not authenticated:
-            if method=='GET' and path=='/':
+            if method=='GET' and path in ('/','/account'):
                 code,mime,body='303 See Other','text/plain',b''
                 extra_headers='Location: /login\r\n'
             else: code,mime,body='401 Unauthorized','application/json',b'{"error":"Authentication required"}'
@@ -914,6 +914,9 @@ async def dashboard(guard, reader, writer):
                     code, mime, body = "400 Bad Request", "application/json", b'{"error":"Invalid action or route not eligible"}'
         elif method == "GET" and path == "/api/status":
             code, mime, body = "200 OK", "application/json", json.dumps(guard.snapshot()).encode()
+        elif method == 'GET' and path == '/account':
+            page=(ROOT/'account.html').read_text(encoding='utf-8').replace('/*TOKEN*/null',json.dumps(guard.control_token))
+            code,mime,body='200 OK','text/html; charset=utf-8',page.encode()
         elif method == "GET" and path == "/":
             code, mime, body = "200 OK", "text/html; charset=utf-8", dashboard_html(token=guard.control_token).encode()
         else:

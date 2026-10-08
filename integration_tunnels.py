@@ -25,7 +25,14 @@ def run(*args,check=True,timeout=30):
 
 def main():
     if os.geteuid()!=0: raise ValueError('Root required')
-    for name in ('chisel','paqet','sing-box','spoof'): tunnel_assets.ensure(name)
+    selected=sys.argv[1:] or ['chisel','wireguard','paqet','spoof','ipip','gre','vxlan','rathole']
+    if not selected or any(m not in tunnel_methods.METHODS or m=='ssh' for m in selected): raise ValueError('Unsupported integration method')
+    required={'chisel'}
+    if 'rathole' in selected: required.add('rathole')
+    if 'paqet' in selected: required.add('paqet')
+    if any(m in selected for m in ('wireguard','spoof')): required.add('sing-box')
+    if 'spoof' in selected: required.add('spoof')
+    for name in sorted(required): tunnel_assets.ensure(name)
     suffix=str(os.getpid())
     namespaces=['tgi'+suffix,'tge'+suffix];interfaces=['tvi'+suffix,'tve'+suffix]
     children=[];results=[]
@@ -45,7 +52,7 @@ def main():
             (temp/'payload').write_text('tunnelguard-real-link-payload')
             fixture=subprocess.Popen(['ip','netns','exec',namespaces[1],sys.executable,'-m','http.server','28880','--bind','127.0.0.1','--directory',str(temp)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             children.append(fixture)
-            for index,(method,direction) in enumerate((m,d) for m in ('chisel','wireguard','paqet','spoof','ipip','gre','vxlan') for d in ('direct','reverse')):
+            for index,(method,direction) in enumerate((m,d) for m in selected for d in ('direct','reverse')):
                 p=tunnel_methods.make_plan(dict(name=f'{method}-{direction}',method=method,direction=direction,iran_source='198.18.50.11',exit_source='198.18.50.12'),dict(iran='198.18.50.1',exit='198.18.50.2'),index+50)
                 pair=[];logs=[]
                 try:
@@ -84,7 +91,7 @@ def main():
                 try: child.wait(timeout=5)
                 except subprocess.TimeoutExpired: child.kill();child.wait()
             for ns in namespaces: run('ip','netns','del',ns,check=False)
-    return 0 if all(r['ok'] for r in results) and len(results)==14 else 1
+    return 0 if all(r['ok'] for r in results) and len(results)==2*len(selected) else 1
 
 
 if __name__=='__main__': raise SystemExit(main())

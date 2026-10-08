@@ -1,5 +1,25 @@
 # TunnelGuard validation record
 
+## 2.5 paired tunnels and account page — 2026-10-08
+
+The local Windows suite discovers 68 tests: 67 pass and one real-core test is
+opt-in. Authenticated access to the separate `/account` page and unauthenticated
+redirects are covered. JavaScript syntax and referenced element IDs were checked
+for the dashboard and account page; no new visual browser QA is claimed here.
+
+Rathole v0.5.0 with Noise passed real payload transfer in both directions in
+isolated amd64 Linux network namespaces. It also passed HTTPS requests through
+each direction between the authorized Iran/outside VPS pair, returning HTTP 204
+with normal TLS certificate verification. The existing VLESS TCP forward passed
+an HTTPS application request after the deployment upgrade. These are bounded
+connectivity checks, not throughput, long-term uptime, or all-ISP guarantees.
+Rathole arm64 archives are pinned but have not been executed in this field run.
+
+Both server roles were upgraded in place, preserving pairing and credentials.
+Repeated manager installation now replaces its existing systemd unit rather
+than failing with `FileExistsError`. Earlier validation records below describe
+the code and limitations at their respective dates.
+
 ## 2.4 transport, forwarding and public panel validation
 
 The [initial 2.4 run](https://github.com/Mehdi682007/TunnelGuard/actions/runs/37400704220)

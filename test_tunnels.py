@@ -75,6 +75,29 @@ class TunnelPlanTests(unittest.TestCase):
         for key,value in [('port',22),('interface','eth0'),('socks_port',8787),('slot',True)]:
             with self.assertRaises(ValueError): methods.validate_plan(dict(p,**{key:value}))
 
+    def test_rathole_authentication_and_loopback_channel_both_directions(self):
+        import base64,tomllib
+        import tunnel_rathole
+        for direction in ('direct','reverse'):
+            p=self.plan('rathole',direction)
+            p.update(noise_private=base64.b64encode(bytes(32)).decode(),noise_public=base64.b64encode(bytes([1])*32).decode())
+            with tempfile.TemporaryDirectory() as temp:
+                folder=Path(temp)
+                for role in ('iran','exit'):
+                    folder=Path(temp)/role;folder.mkdir()
+                    tunnel_rathole.configure(p,role,folder)
+                    cfg=tomllib.loads((folder/'rathole.toml').read_text())
+                    server=role==p['server_role']
+                    side=cfg['server' if server else 'client']
+                    self.assertEqual(side['transport']['type'],'noise')
+                    self.assertIn('local_private_key' if server else 'remote_public_key',side['transport']['noise'])
+                    self.assertTrue(side['services']['channel']['bind_addr' if server else 'local_addr'].startswith('127.0.0.1:'))
+                    commands=tunnel_rathole.commands(p,role,folder,Path('/opt/fixture'))
+                    if server:
+                        self.assertIn('http://127.0.0.1:23013',commands[-1])
+                        self.assertEqual(commands[-1][-1],('R:' if direction=='direct' else '')+'127.0.0.1:30001:socks')
+                    else:self.assertIn('--reverse' if direction=='direct' else '--socks5',commands[-1])
+
     def test_public_plan_omits_pair_secrets(self):
         p=self.plan('chisel','direct');p.update(private_key='PRIVATE',token='SECRET')
         self.assertNotIn('PRIVATE',json.dumps(methods.public_plan(p)))

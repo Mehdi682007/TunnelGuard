@@ -147,7 +147,7 @@ The supplied service runs TunnelGuard without managing privileged cores. After c
 
 ```bash
 sudo mkdir -p /opt/tunnelguard
-sudo cp tunnelguard.py engines.py dashboard.html config.json /opt/tunnelguard/
+sudo cp tunnelguard.py engines.py dashboard.html account.html config.json /opt/tunnelguard/
 sudo chmod 600 /opt/tunnelguard/config.json
 sudo cp tunnelguard.service /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -183,3 +183,9 @@ Menu: **1 Install**, **2 Upgrade**, **3 Change panel credentials**, **4 Status**
 Open `https://IRAN_IP:8787/login`. Initial credentials remain in `/opt/tunnelguard-manager/panel/login.txt`. Use the panel account form to change username/password (current credentials required), or menu option 3 on Iran to recover access as root. Restart/credential changes expire browser sessions. The initial login file is not updated when credentials change; retain your new password.
 
 Each TCP forward has a name, public/local listener, destination, and routing mode. Add as many distinct listener ports as needed. For example, select **fixed** and only WireGuard for 4748, then add a second named forward for 7643 selecting only Paqet. Both destination inbounds must already exist in 3x-ui on outside. Fixed routes are independent of global selection/profile; unhealthy fixed routes fail closed. Alternatively choose **follow global selection** for automatic managed-tunnel switching. Existing forwards can be edited/deleted from their cards. Applying configuration restarts the guard and briefly interrupts traffic; ordinary tunnel selection does not restart it.
+
+## Account page and routing modes
+
+The header's **Account & password** button opens `/account`, a dedicated authenticated page for credential changes and sign-out. Dashboard styling and forward-table controls have been refreshed for mobile and RTL layouts.
+
+**Fixed:** a port uses only its configured tunnel set, independent of the global profile. A single failed fixed tunnel means that port has no route; multiple allowed tunnels can provide fallback. **Follow global:** new connections use the selected healthy managed route, with fallback inside the permitted set and newly installed paired links added automatically. Neither mode migrates existing TCP sessions; reconnect clients to move those sessions.

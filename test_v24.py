@@ -96,11 +96,11 @@ class NetworkTests(unittest.IsolatedAsyncioTestCase):
         self.g.cfg['dashboard_auth_sha256']=hashlib.sha256(auth.encode()).hexdigest()
         port=await self.server(lambda r,w:tg.dashboard(self.g,r,w))
         self.g.cfg['dashboard_port']=port
-        for path in ('/','/api/status','/api/control'):
+        for path in ('/','/account','/api/status','/api/control'):
             r,w=await asyncio.open_connection('127.0.0.1',port)
             w.write(f'GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n'.encode());await w.drain()
             response=await r.read();await tg.close(w)
-            self.assertIn(b'303 See Other' if path=='/' else b'401 Unauthorized',response)
+            self.assertIn(b'303 See Other' if path in ('/','/account') else b'401 Unauthorized',response)
             self.assertNotIn(self.g.control_token.encode(),response)
         r,w=await asyncio.open_connection('127.0.0.1',port)
         w.write(f'GET /api/status HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: {auth}\r\n\r\n'.encode());await w.drain()

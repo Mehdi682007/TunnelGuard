@@ -199,7 +199,7 @@ def upgrade(target, cores=False):
     prefix, _ = TARGETS[target]
     changes = {}
     if (prefix/"app").exists():
-        for name in ("tunnelguard.py", "engines.py", "dashboard.html"):
+        for name in ("tunnelguard.py", "engines.py", "dashboard.html", "account.html"):
             changes[f"app/{name}"] = (ROOT/name).read_bytes()
         # Syntax-check source before touching the running copy.
         for name, data in changes.items():

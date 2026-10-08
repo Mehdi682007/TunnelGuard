@@ -23,7 +23,7 @@ def bootstrap_guard(iran):
     cfg=manage.checked(dict(routes=[],profiles={'All':[]},default_profile='All',targets=[dict(url='https://cp.cloudflare.com/generate_204',status=[204])]))
     prefix.mkdir(parents=True,mode=0o755);(prefix/'app').mkdir(mode=0o755)
     deploy.write_private(prefix/'config.json',cfg)
-    for name in ('tunnelguard.py','engines.py','dashboard.html'):
+    for name in ('tunnelguard.py','engines.py','dashboard.html','account.html'):
         shutil.copy2(SOURCE/name,prefix/'app'/name);(prefix/'app'/name).chmod(0o644)
     deploy.write_private(unit,deploy.unit_text(prefix,'guard',True));unit.chmod(0o644)
     subprocess.run(['systemctl','daemon-reload'],check=True)
@@ -66,8 +66,9 @@ def upgrade(mode):
     (ROOT/'app').mkdir(mode=0o755,exist_ok=True)
     for p in SOURCE.glob('*.py'):
         if p.resolve()!=(ROOT/'app'/p.name).resolve(): shutil.copy2(p,ROOT/'app'/p.name)
-    if (SOURCE/'dashboard.html').resolve()!=(ROOT/'app'/'dashboard.html').resolve():
-        shutil.copy2(SOURCE/'dashboard.html',ROOT/'app'/'dashboard.html')
+    for name in ('dashboard.html','account.html'):
+        if (SOURCE/name).resolve()!=(ROOT/'app'/name).resolve():
+            shutil.copy2(SOURCE/name,ROOT/'app'/name)
     if mode=='controller':
         subprocess.run(['groupadd','--system','tunnelguard-control'],capture_output=True)
         drop=Path('/etc/systemd/system/tunnelguard-client-guard.service.d')
@@ -76,7 +77,7 @@ def upgrade(mode):
             deploy.write_private(drop/'manager.conf','[Service]\nSupplementaryGroups=tunnelguard-control\n')
     unit=Path('/etc/systemd/system')/f'tunnelguard-manager-{mode}.service'
     runtime='RuntimeDirectory=tunnelguard-manager\nRuntimeDirectoryMode=0750\nGroup=tunnelguard-control\n' if mode=='controller' else ''
-    deploy.write_private(unit,f'''[Unit]
+    unit_text=f'''[Unit]
 Description=TunnelGuard paired {mode}
 After=network-online.target
 Wants=network-online.target
@@ -87,8 +88,9 @@ RestartSec=5
 UMask=0077
 {runtime}[Install]
 WantedBy=multi-user.target
-''')
-    unit.chmod(0o644)
+'''
+    from maintenance import atomic
+    atomic(unit,unit_text.encode(),0o644)
     subprocess.run(['systemctl','daemon-reload'],check=True)
     subprocess.run(['systemctl','enable','--now',unit.name],check=True)
     subprocess.run(['systemctl','restart',unit.name],check=True)

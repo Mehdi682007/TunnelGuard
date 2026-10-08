@@ -11,6 +11,7 @@ from pathlib import Path
 
 METHODS = {
     'ssh': ('SSH', 'TCP / SSH', 'native'),
+    'rathole': ('Rathole', 'TCP / Noise / Chisel channel', 'carrier'),
     'chisel': ('Chisel', 'HTTP / WebSocket / SSH', 'native'),
     'wireguard': ('WireGuard', 'L3 / UDP', 'carrier'),
     'paqet': ('Paqet', 'Raw TCP / KCP', 'carrier'),
@@ -73,6 +74,9 @@ def make_plan(data, pair, slot):
     else:
         p['private_key']=subprocess.run(['openssl','ecparam','-name','prime256v1','-genkey','-noout'],check=True,capture_output=True).stdout.decode()
         p['fingerprint'],_=fingerprint(p['private_key'])
+    if p['method']=='rathole':
+        from deploy_wireguard import keypair
+        p['noise_private'],p['noise_public']=keypair()
     if p['method']=='wireguard':
         import deploy_wireguard as wg
         p['wg_server_private'],p['wg_server_public']=wg.keypair()
@@ -100,6 +104,9 @@ def validate_plan(p):
     if p['server_role']!=('exit' if p['direction']=='direct' else 'iran'): raise ValueError('Invalid role')
     if not re.fullmatch(r'[A-Za-z0-9_-]{40,64}',p['token']): raise ValueError('Invalid token')
     if p['method']=='ssh' and (type(p['ssh_port']) is not int or not 1<=p['ssh_port']<=65535): raise ValueError('SSH port')
+    if p['method']=='rathole':
+        for key in ('noise_private','noise_public'):
+            if len(base64.b64decode(p[key],validate=True))!=32: raise ValueError('Invalid Noise key')
     return p
 
 

@@ -50,7 +50,10 @@ def configure(p,role,folder):
     peer=p['exit' if role=='iran' else 'iran']
     write(folder/'key',p['private_key'])
     allowed = [f'^R:127\\.0\\.0\\.1:{p["socks_port"]}$'] if p['direction']=='reverse' else ['^socks$']
-    write(folder/'auth.json',{'tg:'+p['token']:allowed})
+    if method!='rathole': write(folder/'auth.json',{'tg:'+p['token']:allowed})
+    if method=='rathole':
+        import tunnel_rathole
+        tunnel_rathole.configure(p,role,folder)
     if method=='wireguard':
         import deploy_wireguard as wg
         bundle=dict(schema=1,kind='wireguard',core_version=deploy.VERSION,address=p[p['server_role']],port=base+1,socks_port=base+2,bridge_port=base+3,
@@ -117,6 +120,7 @@ def apply(p,role):
     if method in ('ipip','gre','vxlan') and subprocess.run(['ip','link','show',p['interface']],capture_output=True).returncode==0:
         raise ValueError('Network interface collision')
     binaries=['chisel'] if method!='ssh' else []
+    if method=='rathole': binaries.append('rathole')
     if method=='paqet': binaries.append('paqet')
     if method in ('spoof','wireguard'): binaries.append('sing-box')
     if method=='spoof': binaries.append('spoof')
@@ -124,7 +128,9 @@ def apply(p,role):
     # Check all listeners before creating services; never steal an existing port.
     checks=[]
     server=role==p['server_role']
-    if method!='ssh' and server: checks.append(('127.0.0.1' if method in ('paqet','wireguard','spoof') else '0.0.0.0',p['port'],False))
+    if method not in ('ssh','rathole') and server: checks.append(('127.0.0.1' if method in ('paqet','wireguard','spoof') else '0.0.0.0',p['port'],False))
+    if method=='rathole':
+        checks += [('0.0.0.0',p['port']+1,False),('127.0.0.1',p['port']+3,False)] if server else [('127.0.0.1',p['port'],False)]
     if role=='iran': checks.append(('127.0.0.1',p['socks_port'],False))
     if not server and method in ('paqet','wireguard','spoof'): checks.append(('127.0.0.1',p['port']+2,False))
     if method=='wireguard' and server: checks += [('0.0.0.0',p['port']+1,True),('127.0.0.1',p['port']+3,False)]
