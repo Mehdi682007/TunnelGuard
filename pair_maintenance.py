@@ -122,10 +122,10 @@ def main():
         p.error("--if-due-days must be 1..90")
     try:
         result = install_timer(a) if a.install_timer else rotate(a.server, a.client, a.checkout, a.address, a.family, a.output, a.if_due_days)
-        print("وضعیت / Status:", result["phase"])
+        print('Status:', result["phase"])
         return 0
     except (ValueError, KeyError, OSError, RuntimeError, subprocess.SubprocessError):
-        print("گردش گواهی کامل نشد؛ گزارش بازیابی را بررسی کنید. / Rotation incomplete; inspect recovery report.", file=sys.stderr)
+        print('Rotation incomplete; inspect recovery report.', file=sys.stderr)
         return 1
 
 

@@ -88,13 +88,13 @@ def main():
             if a.config.resolve() != CONFIG:
                 raise ValueError('--apply supports the managed client config only')
             identity = save_managed(cfg)
-            print('Applied / اعمال شد. Rollback snapshot:', identity)
+            print('Applied', identity)
         else:
-            print('Valid preview / پیش‌نمایش معتبر. Add --apply to save and restart the guard.')
+            print('Valid preview')
             print(json.dumps(dict(routes=[r['name'] for r in cfg['routes']], forwards=cfg['tcp_forwards']), indent=2))
         return 0
     except (ValueError, OSError, KeyError, subprocess.SubprocessError) as exc:
-        print('Configuration rejected / تنظیمات رد شد:', type(exc).__name__)
+        print('Configuration rejected', type(exc).__name__)
         return 1
 
 

@@ -302,7 +302,7 @@ def main():
             s = generate_client(a.output, a.bundle)
         if a.apply:
             apply(a.output.resolve(), role, s, a.core_archive, a.spoof_binary)
-        print("Spoof configuration ready / تنظیمات اسپوف آماده:", a.output.resolve())
+        print('Spoof configuration ready', a.output.resolve())
         print("Experimental upstream beta. See SPOOF.fa.md / SPOOF.md for firewall and pairing requirements.")
     except (ValueError, KeyError, TypeError, OSError, subprocess.CalledProcessError) as e:
         print(f"Spoof deployment failed ({type(e).__name__}); inspect dependencies, ports and service journal. Existing installation is not overwritten.", file=sys.stderr)

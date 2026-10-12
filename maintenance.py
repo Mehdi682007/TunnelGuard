@@ -431,7 +431,7 @@ def main():
         print(json.dumps(result))
         return 0
     except (ValueError, KeyError, TypeError, AttributeError, OSError, subprocess.SubprocessError):
-        print("عملیات کامل نشد؛ وضعیت سرویس و پشتیبان‌ها را بررسی کنید. / Operation incomplete; inspect services and snapshots.", file=sys.stderr)
+        print('Operation incomplete; inspect services and snapshots.', file=sys.stderr)
         return 1
 
 

@@ -17,19 +17,19 @@ from urllib.parse import urlsplit
 from tunnelguard import load_config, measure, url_check
 
 ADVICE = {
-    "Proxy connection failed": ("خروجی محلی هسته در دسترس نیست؛ سرویس و پورت آن را بررسی کنید.", "Proxy endpoint unavailable; inspect its service and port."),
-    "Proxy handshake failed": ("هسته پاسخ داده ولی اتصال مقصد ساخته نشده؛ رمز، مسیر و لاگ هسته را بررسی کنید.", "Proxy handshake failed; check credentials, route and core log."),
-    "TLS verification failed": ("اعتبار گواهی، ساعت سیستم و جفت‌سازی دو سمت را بررسی کنید؛ اعتبارسنجی TLS را خاموش نکنید.", "Check certificate expiry, clock and pairing; keep TLS verification enabled."),
-    "TLS handshake failed": ("مذاکره TLS شکست خورد؛ تنظیمات دو سمت و دسترسی مقصد را بررسی کنید.", "TLS handshake failed; check peer configuration and destination reachability."),
-    "Timeout": ("پاسخ به‌موقع نرسید؛ اختلال شبکه، فایروال یا مقصد ممکن است علت باشد و از این تست به‌تنهایی قطعی نیست.", "Timed out; network, firewall or destination may be responsible; this test cannot distinguish them."),
-    "Proxy DNS failed": ("نام میزبان پروکسی resolve نشد.", "Proxy hostname DNS resolution failed."),
-    "Target DNS failed": ("نام مقصد resolve نشد؛ DNS مسیر را بررسی کنید.", "Destination DNS resolution failed; inspect route DNS."),
-    "Response exceeds byte cap": ("پاسخ از سقف آزمایش بزرگ‌تر است؛ یک مقصد کوچک انتخاب کنید.", "Response exceeds test cap; select a smaller target."),
+    "Proxy connection failed": ("Proxy endpoint unavailable; inspect its service and port.", "Proxy endpoint unavailable; inspect its service and port."),
+    "Proxy handshake failed": ("Proxy handshake failed; check credentials, route and core log.", "Proxy handshake failed; check credentials, route and core log."),
+    "TLS verification failed": ("Check certificate expiry, clock and pairing; keep TLS verification enabled.", "Check certificate expiry, clock and pairing; keep TLS verification enabled."),
+    "TLS handshake failed": ("TLS handshake failed; check peer configuration and destination reachability.", "TLS handshake failed; check peer configuration and destination reachability."),
+    "Timeout": ("Timed out; network, firewall or destination may be responsible; this test cannot distinguish them.", "Timed out; network, firewall or destination may be responsible; this test cannot distinguish them."),
+    "Proxy DNS failed": ("Proxy hostname DNS resolution failed.", "Proxy hostname DNS resolution failed."),
+    "Target DNS failed": ("Destination DNS resolution failed; inspect route DNS.", "Destination DNS resolution failed; inspect route DNS."),
+    "Response exceeds byte cap": ("Response exceeds test cap; select a smaller target.", "Response exceeds test cap; select a smaller target."),
 }
 
 
-def advice(error, lang="fa"):
-    return ADVICE.get(error, ("جزئیات وضعیت سرویس و تنظیمات مقصد را بررسی کنید.", "Inspect service state and target configuration."))[lang == "en"]
+def advice(error, lang="en"):
+    return ADVICE.get(error, ("Inspect service state and target configuration.", "Inspect service state and target configuration."))[lang == "en"]
 
 
 def save(path, data):
@@ -66,7 +66,7 @@ def certificate_days(config):
     return result
 
 
-async def doctor(config, lang="fa"):
+async def doctor(config, lang="en"):
     cfg = load_config(config)
     results = []
     for route in cfg["routes"]:
@@ -95,7 +95,7 @@ async def doctor(config, lang="fa"):
                 except (ValueError, OSError, subprocess.SubprocessError):
                     certificates.append(dict(file=path.name, unreadable=True))
     return dict(schema=1, kind="diagnostics", routes=results, services=services, certificates=certificates,
-                note=("این گزارش علت قطعی فیلتر یا فایروال را اثبات نمی‌کند." if lang == "fa" else "This report cannot prove censorship or a firewall cause."))
+                note=("This report cannot prove censorship or a firewall cause."))
 
 
 async def soak(cfg, seconds, interval, concurrency, max_mib, output):
@@ -152,7 +152,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("command", choices=["doctor", "soak"])
     p.add_argument("--config", required=True, type=Path)
-    p.add_argument("--lang", choices=["fa", "en"], default="fa")
+    p.add_argument("--lang", choices=["fa", "en"], default="en")
     p.add_argument("--output", type=Path, default=Path("diagnostic-report.json"))
     p.add_argument("--seconds", type=int, default=300)
     p.add_argument("--interval", type=float, default=5)
@@ -167,13 +167,13 @@ def main():
                 print(route["name"], "OK" if route["ok"] else route["advice"])
         else:
             result = asyncio.run(soak(load_config(a.config), a.seconds, a.interval, a.concurrency, a.max_mib, a.output))
-        print("گزارش / Report:", a.output)
+        print('Report:', a.output)
         return 0 if all(r.get("ok", r.get("success", 0) > 0) for r in result["routes"]) else 1
     except KeyboardInterrupt:
-        print("متوقف شد؛ گزارش آخر ذخیره شد. / Interrupted; last report saved.")
+        print('Interrupted; last report saved.')
         return 130
     except (ValueError, OSError, subprocess.SubprocessError):
-        print("تنظیمات، دسترسی فایل و نصب curl/openssl را بررسی کنید. / Check config, file permissions and curl/openssl.")
+        print('Check config, file permissions and curl/openssl.')
         return 1
 
 

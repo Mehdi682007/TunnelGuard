@@ -34,13 +34,13 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 ROOT = Path(__file__).resolve().parent
-LANG = "fa"
+LANG = "en"
 
 
 def say(fa, en):
-    return fa if LANG == "fa" else en
+    return en
 
 
 class ConfigError(ValueError):
@@ -57,26 +57,24 @@ def initialize(path, interactive=False):
         raise FileExistsError("Configuration already exists")
     cfg = load_config(ROOT / "config.example.json")
     if interactive:
-        print(say("تنظیم مسیرها؛ رمز و آدرس پروکسی در گزارش نمایش داده نمی‌شود.",
-                  "Route setup; proxy addresses and credentials are omitted from reports."))
-        count = int(input(say("تعداد مسیرها [2]: ", "Number of routes [2]: ")) or "2")
+        print("Route setup; proxy addresses and credentials are omitted from reports.")
+        count = int(input("Number of routes [2]: ") or "2")
         if not 1 <= count <= 16:
             raise ConfigError("routes: 1..16")
         cfg["routes"] = []
         for i in range(count):
-            name = input(say(f"نام انگلیسی مسیر {i+1} [Route-{i+1}]: ", f"Route {i+1} name [Route-{i+1}]: ")) or f"Route-{i+1}"
-            proxy = getpass.getpass(say("آدرس پروکسی (ورودی مخفی؛ socks5h://host:port یا http://host:port): ",
-                                      "Proxy URL (hidden input; socks5h://host:port or http://host:port): "))
+            name = input(f"Route {i+1} name [Route-{i+1}]: ") or f"Route-{i+1}"
+            proxy = getpass.getpass("Proxy URL (hidden input; socks5h://host:port or http://host:port): ")
             url_check(proxy, True)
-            layer = input(say("برچسب لایه مثل TCP-TLS، QUIC یا SPOOF [unknown]: ", "Layer label, e.g. TCP-TLS, QUIC, SPOOF [unknown]: ")) or "unknown"
+            layer = input("Layer label, e.g. TCP-TLS, QUIC, SPOOF [unknown]: ") or "unknown"
             route = dict(name=name, proxy=proxy, priority=(i+1)*10, layer=layer)
-            kind = input(say("هسته قابل مدیریت، یا external برای اجرای جداگانه [external]: ", "Managed engine kind, or external [external]: ")) or "external"
+            kind = input("Managed engine kind, or external [external]: ") or "external"
             if kind != "external":
                 route["engine"] = dict(kind=kind,
-                    binary=input(say("مسیر کامل فایل اجرایی: ", "Absolute binary path: ")),
-                    config=input(say("مسیر کامل تنظیمات هسته: ", "Absolute engine config path: ")))
+                    binary=input("Absolute binary path: "),
+                    config=input("Absolute engine config path: "))
                 if kind == "ssh":
-                    route["engine"]["host"] = input(say("نام Host در تنظیمات SSH: ", "SSH config Host alias: "))
+                    route["engine"]["host"] = input("SSH config Host alias: ")
                     route["engine"]["local_port"] = urlsplit(proxy).port
                 validate_engine(route["engine"])
             cfg["routes"].append(route)
@@ -94,8 +92,7 @@ def initialize(path, interactive=False):
     fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
-    print(say("فایل تنظیمات ساخته شد. آدرس مسیرها را بررسی و سپس فرمان check را اجرا کنید.",
-              "Config created. Check route addresses, then run the check command."))
+    print("Config created. Check route addresses, then run the check command.")
 
 
 def url_check(value, proxy=False):
@@ -809,7 +806,7 @@ def session_cookie(guard, token=None):
 
 
 def login_html():
-    return """<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard — ورود / Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>نام کاربری / Username<input name="username" autocomplete="username" required maxlength="64"></label><label>رمز عبور / Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>ورود / Sign in</button><p id="message" role="status"></p></form><script>document.getElementById('login').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace('/');else document.getElementById('message').textContent=r.status===429?'کمی صبر کنید / Try again later':'نام کاربری یا رمز نادرست / Invalid credentials';}catch{document.getElementById('message').textContent='ارتباط برقرار نشد / Connection failed';}};</script></html>""".encode()
+    return '<!doctype html><html lang="en" dir="ltr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard v2.6.0 — Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>Username<input name="username" autocomplete="username" required maxlength="64"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>Sign in</button><p id="message" role="status"></p></form><script>document.getElementById(\'login\').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch(\'/api/login\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace(\'/\');else document.getElementById(\'message\').textContent=r.status===429?\'Try again later\':\'Invalid credentials\';}catch{document.getElementById(\'message\').textContent=\'Connection failed\';}};</script></html>'.encode()
 
 
 async def dashboard(guard, reader, writer):
@@ -1013,17 +1010,17 @@ async def serve(cfg, args):
                 supervisor = Supervisor(route.name, definition["engine"], guard.event, stopped)
                 guard.supervisors[route.name] = supervisor
                 tasks.append(asyncio.create_task(supervisor.run()))
-        mode = say("شبیه‌سازی؛ پروکسی غیرفعال", "SIMULATION - no gateway") if guard.demo else 'LIVE - SOCKS5 127.0.0.1:' + str(cfg['listen_port'])
+        mode = 'LIVE - SOCKS5 127.0.0.1:' + str(cfg['listen_port'])
         print(f"TunnelGuard {VERSION} | {mode}", flush=True)
         panel_scheme = 'https' if context else 'http'
         panel_address = cfg.get('dashboard_address', '127.0.0.1')
         if ':' in panel_address: panel_address = f'[{panel_address}]'
-        print(say("داشبورد", "Dashboard") + f": {panel_scheme}://{panel_address}:{cfg['dashboard_port']} | Ctrl+C " + say("برای توقف", "to stop"), flush=True)
+        print("Dashboard" + f": {panel_scheme}://{panel_address}:{cfg['dashboard_port']} | Ctrl+C " + "to stop", flush=True)
         monitor = asyncio.create_task(demo_monitor(guard) if guard.demo else guard.monitor())
         async def reporter():
             while True:
                 await asyncio.sleep(5)
-                print(f"[{time.strftime('%H:%M:%S')}] " + say("مسیر فعال", "active") + f"={guard.active.name if guard.active else 'NONE'} | " +
+                print(f"[{time.strftime('%H:%M:%S')}] " + "active" + f"={guard.active.name if guard.active else 'NONE'} | " +
                       " | ".join(f"{r.name}:{r.state}" for r in guard.routes), flush=True)
                 if args.output:
                     save_report(guard, args.output)
@@ -1075,26 +1072,26 @@ def main():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    LANG = "en" if "--lang" in sys.argv and sys.argv[sys.argv.index("--lang")+1:][:1] == ["en"] else "fa"
-    parser = argparse.ArgumentParser(description=say("TunnelGuard: آزمایشگاه مسیر و پروکسی محلی با پشتیبان خودکار", __doc__))
+    LANG = "en"
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=VERSION)
     subs = parser.add_subparsers(dest="command", required=True)
-    descriptions = {"run":("اجرای نگهبان و داشبورد", "Run gateway and dashboard"), "lab":("آزمایش سلامت مسیرها", "Measure route health"), "demo":("دموی آفلاین با داده ساختگی", "Offline simulation"), "benchmark":("آزمایش سرعت دانلود", "Bounded download benchmark"), "check":("بررسی تنظیمات و وابستگی‌ها", "Validate configuration and dependencies"), "init":("ساخت تنظیمات بدون بازنویسی فایل موجود", "Create configuration without overwriting"), "adapters":("نمایش هسته‌های قابل مدیریت", "List supported engine launch adapters")}
+    descriptions = {"run":("Run gateway and dashboard", "Run gateway and dashboard"), "lab":("Measure route health", "Measure route health"), "demo":("Offline simulation", "Offline simulation"), "benchmark":("Bounded download benchmark", "Bounded download benchmark"), "check":("Validate configuration and dependencies", "Validate configuration and dependencies"), "init":("Create configuration without overwriting", "Create configuration without overwriting"), "adapters":("List supported engine launch adapters", "List supported engine launch adapters")}
     for cmd in descriptions:
         sub = subs.add_parser(cmd, help=say(*descriptions[cmd]))
-        sub.add_argument("--lang", choices=("fa", "en"), default="fa", help="زبان پیام‌ها / Message language")
-        sub.add_argument("--config", default=str(ROOT / "config.example.json") if cmd == "demo" else default_config(), help=say("مسیر فایل تنظیمات", "Configuration file path"))
+        sub.add_argument("--lang", choices=("fa", "en"), default="en", help='English output (fa is a legacy compatibility alias)')
+        sub.add_argument("--config", default=str(ROOT / "config.example.json") if cmd == "demo" else default_config(), help="Configuration file path")
         if cmd == "init":
-            sub.add_argument("--output", default=str(ROOT / "config.json"), help=say("محل فایل جدید", "New configuration path"))
-            sub.add_argument("--interactive", action="store_true", help=say("تنظیم مرحله‌به‌مرحله مسیرها", "Interactive route setup"))
+            sub.add_argument("--output", default=str(ROOT / "config.json"), help="New configuration path")
+            sub.add_argument("--interactive", action="store_true", help="Interactive route setup")
         if cmd == "check":
-            sub.add_argument("--check-engines", action="store_true", help=say("بررسی وجود فایل هسته و تنظیمات و هش اختیاری؛ بدون اجرا", "Check engine files and optional hashes without launching"))
+            sub.add_argument("--check-engines", action="store_true", help="Check engine files and optional hashes without launching")
         if cmd in ("run", "demo"):
             sub.add_argument("--duration", type=int, default=0, help="Stop after N seconds; 0 = continuous")
             sub.add_argument("--output", default=None, help="Optional report directory (overwritten every 5s)")
-            sub.add_argument("--manage-engines", action="store_true", help=say("اجرای هسته‌های ثبت‌شده؛ در دمو نادیده گرفته می‌شود", "Launch configured cores; ignored in demo"))
-            sub.add_argument("--events-file", default=None, help=say("ثبت رویداد JSONL تا سقف ۱۰ مگابایت", "Append event JSONL (10 MiB cap)"))
-            sub.add_argument("--state-file", default=None, help=say("ذخیره انتخاب‌های داشبورد برای اجرای بعدی؛ فقط حالت واقعی", "Persist dashboard choices across live runs"))
+            sub.add_argument("--manage-engines", action="store_true", help="Launch configured cores; ignored in demo")
+            sub.add_argument("--events-file", default=None, help="Append event JSONL (10 MiB cap)")
+            sub.add_argument("--state-file", default=None, help="Persist dashboard choices across live runs")
         if cmd in ("lab", "benchmark"):
             sub.add_argument("--rounds", type=int, default=3)
             sub.add_argument("--output", default="reports")
@@ -1115,12 +1112,12 @@ def main():
         if args.command != "demo":
             curl = shutil.which("curl")
             if not curl:
-                print(say("curl نسخه 8.4 یا جدیدتر لازم است؛ آن را با مدیر بسته سیستم نصب کنید.", "curl 8.4+ is required. Install it with your OS package manager."), file=sys.stderr)
+                print("curl 8.4+ is required. Install it with your OS package manager.", file=sys.stderr)
                 return 1
             version = subprocess.run([curl, "-q", "--version"], capture_output=True, text=True, timeout=5)
             match = re.match(r"curl (\d+)\.(\d+)\.(\d+)", version.stdout)
             if not match or tuple(map(int, match.groups())) < (8, 4, 0):
-                print(say("برای اعمال سقف حجم دانلود، curl نسخه 8.4 یا جدیدتر لازم است.", "curl 8.4+ is required to enforce limits on unknown-size downloads."), file=sys.stderr)
+                print("curl 8.4+ is required to enforce limits on unknown-size downloads.", file=sys.stderr)
                 return 1
         if hasattr(args, "rounds") and not 1 <= args.rounds <= 50:
             raise ValueError("rounds must be 1..50")
@@ -1136,7 +1133,7 @@ def main():
                             engine_command(route["engine"])
                         except ValueError as exc:
                             raise ConfigError(str(exc)) from None
-            print(say(f"تنظیمات معتبر است: {len(cfg['routes'])} مسیر و {len(cfg['targets'])} هدف. درخواست شبکه ارسال نشد.", f"Configuration valid: {len(cfg['routes'])} routes, {len(cfg['targets'])} targets. No network requests made."))
+            print(f"Configuration valid: {len(cfg['routes'])} routes, {len(cfg['targets'])} targets. No network requests made.")
             return 0
         if args.command == "demo":
             cfg["failback"], cfg["cooldown"] = True, 5
@@ -1147,23 +1144,23 @@ def main():
     except KeyboardInterrupt:
         return 130
     except ConfigError as exc:
-        print(say("خطای تنظیمات؛ جزئیات فیلد نامعتبر: ", "Configuration error: ") + str(exc), file=sys.stderr)
+        print("Configuration error: " + str(exc), file=sys.stderr)
         return 1
     except EOFError:
-        print(say("ورودی راه‌اندازی بسته شد؛ فایل تنظیمات ساخته نشد.", "Setup input closed; no configuration was created."), file=sys.stderr)
+        print("Setup input closed; no configuration was created.", file=sys.stderr)
         return 1
     except FileExistsError:
-        print(say("فایل از قبل وجود دارد؛ برای حفظ تنظیمات شما بازنویسی نشد. مسیر خروجی دیگری انتخاب کنید.", "File already exists; it was not overwritten. Choose another output path."), file=sys.stderr)
+        print("File already exists; it was not overwritten. Choose another output path.", file=sys.stderr)
         return 1
     except FileNotFoundError:
-        print(say("فایل تنظیمات یا یکی از فایل‌های برنامه پیدا نشد. مسیر --config و کامل بودن پوشه را بررسی کنید.", "Configuration or application file not found. Check --config and the package contents."), file=sys.stderr)
+        print("Configuration or application file not found. Check --config and the package contents.", file=sys.stderr)
         return 1
     except json.JSONDecodeError as exc:
-        print(say(f"ساختار JSON معتبر نیست؛ خط {exc.lineno}، ستون {exc.colno}.", f"Invalid JSON at line {exc.lineno}, column {exc.colno}."), file=sys.stderr)
+        print(f"Invalid JSON at line {exc.lineno}, column {exc.colno}.", file=sys.stderr)
         return 1
     except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as exc:
         # Do not echo URL-bearing exceptions or config content.
-        print(say(f"خطا ({type(exc).__name__}): تنظیمات، وابستگی‌ها، آزاد بودن پورت‌ها و مجوز نوشتن پوشه خروجی را بررسی کنید.", f"Error: {type(exc).__name__}. Check configuration, dependencies, ports and writable output directory."), file=sys.stderr)
+        print(f"Error: {type(exc).__name__}. Check configuration, dependencies, ports and writable output directory.", file=sys.stderr)
         return 1
 
 

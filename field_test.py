@@ -41,13 +41,13 @@ def main():
         report["measurements"] = json.loads(call(["cat", destination], 30).stdout)
         report["status"] = "complete"
         save(a.output, report)
-        print("گزارش آزمایش میدانی / Field report:", a.output)
+        print('Field report:', a.output)
         return 0 if result.returncode == 0 else 1
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError):
         report["status"] = "incomplete"
         report["remote_report"] = destination
         save(a.output, report)
-        print("تست کامل نشد؛ گزارش باقی‌مانده روی کلاینت را بررسی کنید. / Test incomplete; inspect client report.")
+        print('Test incomplete; inspect client report.')
         return 1
 
 

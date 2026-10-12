@@ -350,7 +350,7 @@ def main():
             generate_client(a.output, a.bundle, a.local_base)
         if a.apply:
             apply(a.output.resolve(), a.role, a.core_archive)
-        print("Ready / آماده:", a.output.resolve())
+        print('Ready', a.output.resolve())
         if a.role == "server":
             print("Private pairing.json contains passwords. Transfer only over a trusted channel.")
             print(f"Firewall required: TCP {a.ports[0]}, TCP {a.ports[1]}, UDP {a.ports[2]}. Firewall unchanged.")
