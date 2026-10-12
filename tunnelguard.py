@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.6.1"
+VERSION = "2.6.2"
 ROOT = Path(__file__).resolve().parent
 LANG = "en"
 
@@ -860,7 +860,7 @@ def session_cookie(guard, token=None):
 
 
 def login_html():
-    return '<!doctype html><html lang="en" dir="ltr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard v2.6.1 — Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>Username<input name="username" autocomplete="username" required maxlength="64"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>Sign in</button><p id="message" role="status"></p></form><script>document.getElementById(\'login\').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch(\'/api/login\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace(\'/\');else document.getElementById(\'message\').textContent=r.status===429?\'Try again later\':\'Invalid credentials\';}catch{document.getElementById(\'message\').textContent=\'Connection failed\';}};</script></html>'.encode()
+    return '<!doctype html><html lang="en" dir="ltr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard v2.6.2 — Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>Username<input name="username" autocomplete="username" required maxlength="64"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>Sign in</button><p id="message" role="status"></p></form><script>document.getElementById(\'login\').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch(\'/api/login\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace(\'/\');else document.getElementById(\'message\').textContent=r.status===429?\'Try again later\':\'Invalid credentials\';}catch{document.getElementById(\'message\').textContent=\'Connection failed\';}};</script></html>'.encode()
 
 
 async def dashboard(guard, reader, writer):

@@ -39,7 +39,7 @@ def main():
         print('Run with sudo on a Linux server');return 1
     while True:
         display(banner())
-        display('1) 📦 Install\n2) 🔄 Upgrade from this checkout\n3) 🔐 Change panel login (Iran)\n4) 📊 Service status\n5) 🧰 Install prerequisites (apt)\n0) 🚪 Exit')
+        display('1) 📦 Install\n2) 🔄 Upgrade from this checkout\n3) 🔐 Change panel login (Iran)\n4) 📊 Service status\n5) 🧰 Install prerequisites (apt)\n6) 🗑 Uninstall this server\n0) 🚪 Exit')
         try:
             choice=input('> ').strip()
             if choice=='0': return 0
@@ -61,8 +61,11 @@ def main():
             elif choice=='5':
                 subprocess.run(['apt-get','update'],check=True)
                 subprocess.run(['apt-get','install','-y','python3','curl','openssl','openssh-client','openssh-server','iproute2','iptables'],check=True)
+            elif choice=='6':
+                import uninstall
+                if uninstall.interactive():return 0
             else: print('Unknown option')
-        except (ValueError,OSError,subprocess.SubprocessError) as error:
+        except (ValueError,OSError,RuntimeError,subprocess.SubprocessError) as error:
             print('Operation failed',type(error).__name__,str(error))
         except (EOFError,KeyboardInterrupt):return 0
 

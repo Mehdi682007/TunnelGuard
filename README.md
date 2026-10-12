@@ -189,3 +189,21 @@ Each TCP forward has a name, public/local listener, destination, and routing mod
 The header's **Account & password** button opens `/account`, a dedicated authenticated page for credential changes and sign-out. Dashboard styling and forward-table controls have been refreshed for mobile and RTL layouts.
 
 **Fixed:** a port uses only its configured tunnel set, independent of the global profile. A single failed fixed tunnel means that port has no route; multiple allowed tunnels can provide fallback. **Follow global:** new connections use the selected healthy managed route, with fallback inside the permitted set and newly installed paired links added automatically. Neither mode migrates existing TCP sessions; reconnect clients to move those sessions.
+
+
+## Uninstall a managed server (2.6.2)
+
+Update the checkout, run `sudo python3 setup.py`, choose **6**, review the local
+removal list and type `UNINSTALL`. Repeat separately on the other server.
+The action stops tunnels and forwarding, removes managed systemd services/timers,
+link interfaces, tagged Paqet rules, restricted SSH accounts, installed cores,
+private credentials, session storage, caches and maintenance snapshots. It is
+irreversible; keep any configurations you need before confirming.
+
+`sudo python3 uninstall.py` previews without making changes;
+`sudo python3 uninstall.py --apply` previews and asks for confirmation.
+Failure is reported rather than silently claiming a complete cleanup; files are
+retained when network cleanup cannot be verified. The opposite server is not
+contacted. Shared apt packages, system journals/history, the source checkout,
+custom-prefix installs and separately copied pairing/export/backup files are not
+removed. Review those copies separately; this is not a promise of forensic erasure.
