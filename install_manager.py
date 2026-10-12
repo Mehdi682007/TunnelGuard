@@ -73,6 +73,8 @@ def upgrade(mode):
         subprocess.run(['groupadd','--system','tunnelguard-control'],capture_output=True)
         drop=Path('/etc/systemd/system/tunnelguard-client-guard.service.d')
         drop.mkdir(exist_ok=True)
+        from maintenance import atomic
+        atomic(drop/'sessions.conf', b'[Service]\nStateDirectory=tunnelguard-panel\nStateDirectoryMode=0700\nEnvironment=TG_SESSION_FILE=/var/lib/tunnelguard-panel/sessions.json\n', 0o644)
         if not (drop/'manager.conf').exists():
             deploy.write_private(drop/'manager.conf','[Service]\nSupplementaryGroups=tunnelguard-control\n')
     unit=Path('/etc/systemd/system')/f'tunnelguard-manager-{mode}.service'

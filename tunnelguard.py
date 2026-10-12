@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.6.0"
+VERSION = "2.6.1"
 ROOT = Path(__file__).resolve().parent
 LANG = "en"
 
@@ -359,6 +359,7 @@ class Guard:
         self.challenger = None
         self.challenger_rounds = 0
         self.control_token = secrets.token_urlsafe(32)
+        initialize_sessions(self)
         self.probe_slots = asyncio.Semaphore(cfg["probe_concurrency"])
         self.supervisors = {}
         self.event_file = None
@@ -785,6 +786,58 @@ async def manager_request(data):
         if remote: await close(remote)
 
 
+def save_sessions(guard):
+    path = getattr(guard, 'session_path', None)
+    if path is None:
+        return
+    data = json.dumps(dict(secret=guard.session_secret, sessions=guard.web_sessions))
+    fd, temporary = tempfile.mkstemp(prefix='.sessions-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            os.chmod(temporary, 0o600)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def initialize_sessions(guard):
+    guard.session_path = None
+    guard.web_sessions = {}
+    configured = os.environ.get('TG_SESSION_FILE')
+    if not configured or guard.demo:
+        return
+    path = Path(configured)
+    guard.session_path = path
+    if path.exists():
+        if path.is_symlink() or path.stat().st_size > 65536:
+            raise ConfigError('Invalid private session store')
+        data = json.loads(path.read_text(encoding='utf-8'))
+        secret, sessions = data.get('secret'), data.get('sessions')
+        if not isinstance(secret, str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}', secret):
+            raise ConfigError('Invalid session signing key')
+        if not isinstance(sessions, dict) or len(sessions) > 100 or any(
+                not isinstance(k, str) or len(k) > 160 or type(v) is not int
+                for k, v in sessions.items()):
+            raise ConfigError('Invalid session registry')
+        guard.session_secret = secret
+        guard.web_sessions = {k:v for k,v in sessions.items() if v > time.time()}
+    else:
+        guard.session_secret = secrets.token_urlsafe(32)
+        save_sessions(guard)
+    # Stable through restarts, rotated when credentials change.
+    guard.control_token = hmac.new(guard.session_secret.encode(),
+        ('csrf:' + guard.cfg.get('dashboard_auth_sha256', '')).encode(), hashlib.sha256).hexdigest()
+
+
+def revoke_session(guard, token):
+    guard.web_sessions.pop(token, None)
+    save_sessions(guard)
+
+
 def session_cookie(guard, token=None):
     key=(guard.control_token+guard.cfg.get('dashboard_auth_sha256','')).encode()
     if token is None:
@@ -795,6 +848,7 @@ def session_cookie(guard, token=None):
         if len(sessions)>=100: sessions.pop(next(iter(sessions)))
         sessions[result]=int(time.time())+28800
         guard.web_sessions=sessions
+        save_sessions(guard)
         return result
     try:
         if token not in getattr(guard,'web_sessions',{}): return False
@@ -806,7 +860,7 @@ def session_cookie(guard, token=None):
 
 
 def login_html():
-    return '<!doctype html><html lang="en" dir="ltr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard v2.6.0 — Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>Username<input name="username" autocomplete="username" required maxlength="64"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>Sign in</button><p id="message" role="status"></p></form><script>document.getElementById(\'login\').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch(\'/api/login\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace(\'/\');else document.getElementById(\'message\').textContent=r.status===429?\'Try again later\':\'Invalid credentials\';}catch{document.getElementById(\'message\').textContent=\'Connection failed\';}};</script></html>'.encode()
+    return '<!doctype html><html lang="en" dir="ltr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TunnelGuard v2.6.1 — Login</title><style>body{background:#101827;color:#eef;font:17px system-ui;display:grid;place-items:center;min-height:95vh}form{width:min(340px,85vw);padding:32px;border:1px solid #456;border-radius:18px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px}button{background:#64d9bd;cursor:pointer}p{font-size:14px}</style><form id="login"><h1>TunnelGuard</h1><label>Username<input name="username" autocomplete="username" required maxlength="64"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button>Sign in</button><p id="message" role="status"></p></form><script>document.getElementById(\'login\').onsubmit=async e=>{e.preventDefault();const f=e.target;try{const r=await fetch(\'/api/login\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({username:f.username.value,password:f.password.value})});if(r.ok)location.replace(\'/\');else document.getElementById(\'message\').textContent=r.status===429?\'Try again later\':\'Invalid credentials\';}catch{document.getElementById(\'message\').textContent=\'Connection failed\';}};</script></html>'.encode()
 
 
 async def dashboard(guard, reader, writer):
@@ -863,7 +917,7 @@ async def dashboard(guard, reader, writer):
                         code,mime,body='200 OK','application/json',b'{"ok":true}'
                     else: code,mime,body='401 Unauthorized','application/json',b'{"error":"Invalid credentials"}'
         elif method=='POST' and path=='/api/logout' and headers.get('origin')==f'{scheme}://{host}':
-            if cookie: getattr(guard,'web_sessions',{}).pop(cookie.value,None)
+            if cookie: revoke_session(guard,cookie.value)
             extra_headers='Set-Cookie: tg_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0\r\n'
             code,mime,body='200 OK','application/json',b'{}'
 
