@@ -1,5 +1,25 @@
 # TunnelGuard validation record
 
+## Replacement outside VPS field trial — 2026-10-12
+
+An authorized fresh Ubuntu 24.04 amd64 outside node was paired with the existing
+Iran node. The previous configuration was backed up, the pairing token and link
+keys were rotated, and the two named forwarding rules were preserved. Ten paired
+links were installed. In two bounded HTTPS checks per link, reverse SSH, reverse
+WireGuard and reverse Rathole returned HTTP 204. Chisel in both directions,
+direct Rathole, and reverse IPIP/GRE/VXLAN/Paqet did not pass those checks.
+Spoof was not configured or tested on this replacement node.
+
+A temporary loopback HTTP fixture on the outside node was reached through the
+public Iran TCP forward on port 4748. The other forward, pinned to VXLAN, failed
+as expected when its only allowed route was unavailable. No 3x-ui installation
+or VLESS user inbound was deployed on the replacement node. The temporary test
+fixture was stopped after verification.
+
+The outside node's IPv4 gateway remained reachable and outbound HTTPS worked
+after deploying the above methods. This short test does not establish long-term
+stability or determine the cause of the previous node's gateway/ARP failure.
+
 ## 2.5 paired tunnels and account page — 2026-10-08
 
 The local Windows suite discovers 68 tests: 67 pass and one real-core test is
