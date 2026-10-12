@@ -69,6 +69,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Tests
         run: python -m unittest discover -v
+      - name: Dashboard reconnect regression
+        run: node test_dashboard.js
       - name: Validate example configuration
         run: python tunnelguard.py check --lang en --config config.multilayer.example.json
       - name: Real core transport and fallback integration (Linux)
