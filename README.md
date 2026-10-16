@@ -1,5 +1,9 @@
 # TunnelGuard
 
+[![English](https://img.shields.io/badge/Language-English-2563eb?style=for-the-badge)](README.md) [![فارسی](https://img.shields.io/badge/زبان-فارسی-16a34a?style=for-the-badge)](README.fa.md)
+
+**Choose your guide: [English](README.md) | [فارسی](README.fa.md)**
+
 **2.5: [two-server tunnel management from the panel](TUNNELS.md)** — SSH, Chisel, WireGuard, Paqet, Spoof, IPIP, GRE and VXLAN, direct/reverse channels, Spoof source inputs, paired exit agent and forwarding for existing 3x-ui inbounds. Fresh installation needs no VMess/VLESS deployment. The 2.4 proxy installers below remain for compatibility and are not counted as independent network tunnel methods.
 
 **New in 2.4:** [ten installer options](TRANSPORTS.md), [reverse SSH](REVERSE.md), [userspace WireGuard](WIREGUARD.md), [TCP/x-ui forwarding and authenticated HTTPS dashboard](FORWARDING.md). Available installers are shown separately from configured/healthy routes. No minimum number of working protocols is guaranteed.
@@ -30,10 +34,11 @@ Other adapters require separately configured cores. TunnelGuard does not impleme
 On Ubuntu 24.04:
 
 ```bash
-sudo apt update
-sudo apt install -y git python3 curl
-git clone https://github.com/Mehdi682007/TunnelGuard.git
-cd TunnelGuard && sudo python3 setup.py
+sudo apt update &&
+sudo apt install -y git python3 curl &&
+git clone https://github.com/Mehdi682007/TunnelGuard.git &&
+cd TunnelGuard &&
+sudo python3 setup.py
 ```
 
 Run these commands on both Linux servers. In the menu, use **5** to install prerequisites, then **1** to install. Set up **Iran (role 1)** first, transfer its generated pairing file privately to the outside server, then install **Outside (role 2)** with that file. Follow [the two-server guide](TUNNELS.md). Open the installed panel at **https://IRAN_IP:8787**; initial credentials are in `/opt/tunnelguard-manager/panel/login.txt` on Iran.
