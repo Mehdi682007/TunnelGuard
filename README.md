@@ -10,7 +10,7 @@
 
 **[فارسی — راهنمای کامل](README.fa.md)** · **English** · [Multi-layer guide (English)](MULTILAYER.md) · [راهنمای چندلایه و Spoof](MULTILAYER.fa.md)
 
-Local tunnel monitoring, route selection and TCP failover, with an English dashboard and English/Persian documentation.
+Local tunnel monitoring, route selection and TCP failover, with a Persian/English dashboard and documentation.
 
 **New in 2.3: [operations toolkit](OPERATIONS.md)** — bilingual diagnostics, snapshot-based upgrades/rollback/uninstall, coordinated certificate/password rotation with an optional daily timer, bounded soak and SSH field tests, and native ARM64 CI.
 
@@ -128,7 +128,7 @@ Keep configuration files private (`chmod 600 config.json` on Linux). Credentials
 | `benchmark --url URL --rounds 3 --output reports` | Sequential bounded download measurements |
 | `adapters` | List supported launch adapters and upstream project links |
 
-Add `--config FILE` to choose a configuration explicitly. Live commands otherwise prefer `config.json` beside the program and fall back to `config.example.json`. Demo defaults to the example. Runtime messages and the dashboard are in English.
+Add `--config FILE` to choose a configuration explicitly. Live commands otherwise prefer `config.json` beside the program and fall back to `config.example.json`. Demo defaults to the example. The installer and terminal messages remain English. Use the language button on the dashboard, login or account page to switch between Persian (RTL) and English; the browser remembers your choice.
 
 Example download benchmark against a known-size file **on a server you control**:
 
