@@ -6,7 +6,7 @@
 
 **[فارسی — راهنمای کامل](README.fa.md)** · **English** · [Multi-layer guide (English)](MULTILAYER.md) · [راهنمای چندلایه و Spoof](MULTILAYER.fa.md)
 
-Local tunnel monitoring, route selection and TCP failover, with a Persian/English dashboard.
+Local tunnel monitoring, route selection and TCP failover, with an English dashboard and English/Persian documentation.
 
 **New in 2.3: [operations toolkit](OPERATIONS.md)** — bilingual diagnostics, snapshot-based upgrades/rollback/uninstall, coordinated certificate/password rotation with an optional daily timer, bounded soak and SSH field tests, and native ARM64 CI.
 
@@ -25,7 +25,7 @@ Other adapters require separately configured cores. TunnelGuard does not impleme
 - No pip dependencies.
 - For live use: at least one working SOCKS5 or HTTP CONNECT endpoint; two independent routes are recommended for failover.
 
-## Download and run
+## Install on two servers — interactive menu
 
 On Ubuntu 24.04:
 
@@ -33,11 +33,24 @@ On Ubuntu 24.04:
 sudo apt update
 sudo apt install -y git python3 curl
 git clone https://github.com/Mehdi682007/TunnelGuard.git
-cd TunnelGuard
+cd TunnelGuard && sudo python3 setup.py
+```
+
+Run these commands on both Linux servers. In the menu, use **5** to install prerequisites, then **1** to install. Set up **Iran (role 1)** first, transfer its generated pairing file privately to the outside server, then install **Outside (role 2)** with that file. Follow [the two-server guide](TUNNELS.md). Open the installed panel at **https://IRAN_IP:8787**; initial credentials are in `/opt/tunnelguard-manager/panel/login.txt` on Iran.
+
+Already cloned the repository? Inside its directory, run `git pull --ff-only`, then `sudo python3 setup.py`. Choose **2** to upgrade an existing installation, or **1** for a fresh installation.
+
+`setup.py` opens the installation menu. `tunnelguard.py demo` runs a simulation and does **not** install servers. If the demo is running, press **Ctrl+C** before starting the installer.
+
+## Optional demo — no server installation
+
+Inside the downloaded repository:
+
+```bash
 python3 tunnelguard.py demo --config config.multilayer.example.json
 ```
 
-Open **http://127.0.0.1:8787**. The demo is explicitly marked as simulated and starts **no proxy gateway**. Switch language with the button at the top.
+Open **http://127.0.0.1:8787** on the same computer. The demo is explicitly marked as simulated and starts **no proxy gateway**.
 
 On Windows, install Python 3.11+ and Git, clone the repository, and replace `python3` with `python`. A sufficiently recent `curl.exe` must be on PATH for live mode. All examples use the same Python program; the optional installer below is for Linux/macOS.
 
@@ -110,7 +123,7 @@ Keep configuration files private (`chmod 600 config.json` on Linux). Credentials
 | `benchmark --url URL --rounds 3 --output reports` | Sequential bounded download measurements |
 | `adapters` | List supported launch adapters and upstream project links |
 
-Add `--config FILE` to choose a configuration explicitly. Live commands otherwise prefer `config.json` beside the program and fall back to `config.example.json`. Demo defaults to the example. Add `--lang en` for English console messages; dashboard language is independently selectable.
+Add `--config FILE` to choose a configuration explicitly. Live commands otherwise prefer `config.json` beside the program and fall back to `config.example.json`. Demo defaults to the example. Runtime messages and the dashboard are in English.
 
 Example download benchmark against a known-size file **on a server you control**:
 
