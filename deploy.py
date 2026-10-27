@@ -225,6 +225,7 @@ def preflight(role):
 def unit_text(prefix, name, guard=False):
     config = "config.json" if guard else f"{name}.json"
     command = f"/usr/bin/python3 {prefix}/app/tunnelguard.py run --config %d/config.json" if guard else f"{prefix}/sing-box run -c %d/config.json"
+    bind_capability = "AmbientCapabilities=CAP_NET_BIND_SERVICE\nCapabilityBoundingSet=CAP_NET_BIND_SERVICE\n" if guard else ""
     families = "AF_INET AF_INET6 AF_UNIX" + ("" if guard else " AF_NETLINK")
     return f"""[Unit]
 Description=TunnelGuard managed {name}
@@ -232,7 +233,7 @@ After=network-online.target
 Wants=network-online.target
 [Service]
 DynamicUser=yes
-LoadCredential=config.json:{prefix}/{config}
+{bind_capability}LoadCredential=config.json:{prefix}/{config}
 ExecStart={command}
 Restart=on-failure
 RestartSec=5

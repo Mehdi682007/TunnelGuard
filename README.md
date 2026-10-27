@@ -24,6 +24,8 @@ Other adapters require separately configured cores. TunnelGuard does not impleme
 
 ## Requirements
 
+**2.6.4 — Low TCP forwarding ports:** the panel accepts ports **1–65535**, including **80 and 443**. Upgrade the Iran/controller installation with menu option **2** to grant its unprivileged guard service `CAP_NET_BIND_SERVICE`; updating only the HTML is insufficient. The port must be free and reachable through your firewall. Existing SSH, web or panel listeners cannot share the same listening address/port with a forward. Manual non-root runs need the corresponding OS bind permission for low ports.
+
 - Python **3.11+**.
 - curl **8.4+** for live measurements; the offline demo needs no curl or Internet access.
 - No pip dependencies.

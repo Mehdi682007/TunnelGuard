@@ -75,6 +75,7 @@ def upgrade(mode):
         drop.mkdir(exist_ok=True)
         from maintenance import atomic
         atomic(drop/'sessions.conf', b'[Service]\nStateDirectory=tunnelguard-panel\nStateDirectoryMode=0700\nEnvironment=TG_SESSION_FILE=/var/lib/tunnelguard-panel/sessions.json\n', 0o644)
+        atomic(drop/'low-ports.conf', b'[Service]\nAmbientCapabilities=CAP_NET_BIND_SERVICE\nCapabilityBoundingSet=CAP_NET_BIND_SERVICE\n', 0o644)
         if not (drop/'manager.conf').exists():
             deploy.write_private(drop/'manager.conf','[Service]\nSupplementaryGroups=tunnelguard-control\n')
     unit=Path('/etc/systemd/system')/f'tunnelguard-manager-{mode}.service'

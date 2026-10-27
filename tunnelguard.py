@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit, unquote
 from engines import ENGINES, Supervisor, validate_engine, command as engine_command
 
-VERSION = "2.6.3"
+VERSION = "2.6.4"
 ROOT = Path(__file__).resolve().parent
 LANG = "en"
 
